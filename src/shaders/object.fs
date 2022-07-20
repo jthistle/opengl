@@ -42,12 +42,16 @@ in vec2 TexCoords;
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
-    vec3 lightDir = normalize(-light.direction);
+    // Calculate direction vectors
+    vec3 lightDir   = -light.direction; 
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+
+    // Diffuse part
     float diff = max(dot(normal, lightDir), 0.0);
-    // specular shading
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-    // combine results
+    // Specular part (Blinn-Phong)
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
+    
+    // TODO: index 0 is hack
     vec3 ambient  = light.ambient  * vec3(texture(material.texturesDiffuse[0], TexCoords));
     vec3 diffuse  = light.diffuse  * diff * vec3(texture(material.texturesDiffuse[0], TexCoords));
     vec3 specular = light.specular * spec * vec3(texture(material.texturesSpecular[0], TexCoords));
@@ -57,17 +61,18 @@ vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
-    vec3 lightDir = normalize(light.position - fragPos);
-    // diffuse shading
+    vec3 lightDir   = normalize(light.position - FragPos);
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    
+    // Diffuse
     float diff = max(dot(normal, lightDir), 0.0);
-    // specular shading
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-    // attenuation
+    // Blinn-Phong
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
+    // Attenuation
     float dist        = length(light.position - fragPos);
-    float attenuation = 1.0 / (1.0 + light.linear * dist + 
-  			     light.quadratic * (dist * dist));    
-    // combine results
+    float attenuation = 1.0 / (1.0 + light.linear * dist + light.quadratic * (dist * dist));    
+    
+    // TODO: index 0 hack
     vec3 ambient  = light.ambient  * vec3(texture(material.texturesDiffuse[0], TexCoords));
     vec3 diffuse  = light.diffuse  * diff * vec3(texture(material.texturesDiffuse[0], TexCoords));
     vec3 specular = light.specular * spec * vec3(texture(material.texturesSpecular[0], TexCoords));
@@ -88,8 +93,6 @@ void main()
     // phase 2: Point lights
     for(int i = 0; i < numberPointLights; i++)
         result += CalcPointLight(pointLights[i], norm, FragPos, viewDir);    
-    // phase 3: Spot light
-    //result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
-    
+
     FragColor = vec4(result, 1.0);
 }

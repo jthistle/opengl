@@ -15,8 +15,11 @@
 #include "directionalLight.h"
 #include "pointLight.h"
 #include "model.h"
+#include "mesh.h"
 
 static Camera camera;
+
+using glm::vec3;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -76,6 +79,7 @@ int main()
     glViewport(0, 0, 1200, 900);
     glEnable(GL_DEPTH_TEST);  
     glEnable(GL_STENCIL_TEST);    
+    glEnable(GL_FRAMEBUFFER_SRGB);  // gamma correction 
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     
@@ -93,28 +97,47 @@ int main()
     Model backpack("../src/backpack/backpack.obj");
     std::cout << "loaded model" << std::endl;
 
+    Texture pixel("../src/pixel.png", GL_RGB);
+    pixel.type = "texturesDiffuse";
+    Texture pixelSpec("../src/pixel.png", GL_RGB);
+    pixelSpec.type = "texutresSpecular";
+
+    std::vector<Vertex> planeVerts = {
+        { vec3(-1.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f), vec3(0.0f) },
+        { vec3(-1.0f, 0.0f,  1.0f), vec3(0.0f, 1.0f, 0.0f), vec3(0.0f) },
+        { vec3( 1.0f, 0.0f,  1.0f), vec3(0.0f, 1.0f, 0.0f), vec3(0.0f) },
+        { vec3( 1.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f), vec3(0.0f) },
+    };
+    std::vector<unsigned int> planeIndices = { 0, 1, 2, 0, 2, 3 };
+    std::vector<Texture> planeTextures = {
+        pixel, pixelSpec
+    };
+    Mesh plane(planeVerts, planeIndices, planeTextures);
+    plane.shininess = 128.0f;
+
     // Lights
     DirectionalLight dirLight = DirectionalLight(
-        glm::vec3(1.0f, 0.95f, 0.8f), 
-        // glm::vec3(0.0f),
-        // glm::vec3(1.0f, 0.4f, 0.2f), 
-        0.1f,
+        // vec3(1.0f, 0.95f, 0.8f), 
+        vec3(0.0f),
+        // vec3(1.0f, 0.4f, 0.2f), 
+        0.05f,
         0.5f,
         1.0f,
-        glm::vec3(1.0f, -1.0f, -1.0f)
-        // glm::vec3(1.0f, -0.2f, -1.0f)
+        vec3(1.0f, -1.0f, -1.0f)
+        // vec3(1.0f, -0.2f, -1.0f)
     );
 
     PointLight pointLights[] = {
-        // PointLight(glm::vec3(2.0f, 1.0f, 5.0f), glm::vec3(1.0f, 0.0f, 0.0f), 0.1f, 0.5f, 1.0f, 50.0f),
-        // PointLight(glm::vec3(-2.0f, -1.0f, 5.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0.1f, 0.5f, 1.0f, 100.0f),
-        // PointLight(glm::vec3(0.0f, 1.0f, 10.0f), glm::vec3(1.0f, 0.5f, 0.0f), 0.1f, 0.5f, 1.0f, 200.0f),
+        // PointLight(vec3(2.0f, 1.0f, 5.0f), vec3(1.0f, 0.0f, 0.0f), 0.1f, 0.5f, 1.0f, 50.0f),
+        // PointLight(vec3(-2.0f, -1.0f, 5.0f), vec3(0.0f, 0.0f, 1.0f), 0.1f, 0.5f, 1.0f, 100.0f),
+        // PointLight(vec3(0.0f, 1.0f, 10.0f), vec3(1.0f, 0.5f, 0.0f), 0.1f, 0.5f, 1.0f, 200.0f),
+        PointLight(vec3(0.0f, 1.0f, 5.0f), vec3(1.0f), 0.1f, 0.5f, 1.0f, 50.0f),
     };
-    int numberPointLights = 0;
+    int numberPointLights = 1;
 
-    glm::vec3 skyboxColor = glm::vec3(0.1f, 0.3f, 0.6f); 
-    // glm::vec3 skyboxColor = glm::vec3(0.4f, 0.1f, 0.05f); 
-    // glm::vec3 skyboxColor = glm::vec3(0.01f, 0.01f, 0.01f); 
+    vec3 skyboxColor = vec3(0.02f, 0.1f, 0.3f); 
+    // vec3 skyboxColor = vec3(0.4f, 0.1f, 0.05f); 
+    // vec3 skyboxColor = vec3(0.01f, 0.01f, 0.01f); 
 
 
     // Create element buffer object
@@ -164,10 +187,6 @@ int main()
         // Clear colour buffer
         glClearColor(skyboxColor.x, skyboxColor.y, skyboxColor.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);  
-        glStencilFunc(GL_ALWAYS, 1, 0xFF); // all fragments should pass the stencil test
-        glStencilMask(0xFF); // enable writing to the stencil buffer
-        lightingShader.use();
 
         // Update model
         // Update uniforms
@@ -177,22 +196,12 @@ int main()
         lightingShader.setMat4("view", view);
         lightingShader.setMat4("projection", camera.projection);
         lightingShader.setVec3("viewPos", camera.cameraPos);
-
         backpack.draw(lightingShader);
 
-        // Draw scaled up
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00); 
-        glDisable(GL_DEPTH_TEST);
-        model = glm::scale(model, glm::vec3(1.02f));
-        singleColorShader.use(); 
-        singleColorShader.setMat4("model", model);
-        singleColorShader.setMat4("view", view);
-        singleColorShader.setMat4("projection", camera.projection);
-        backpack.draw(singleColorShader);
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);   
-        glEnable(GL_DEPTH_TEST);  
+        model = glm::translate(model, vec3(0.0f, -1.7f, 0.0f));
+        model = glm::scale(model, vec3(20.0f));
+        lightingShader.setMat4("model", model);
+        plane.draw(lightingShader);
 
         glBindVertexArray(0);
         glfwSwapBuffers(window);
