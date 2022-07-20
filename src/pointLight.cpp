@@ -6,6 +6,7 @@ PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float
 }
 
 void PointLight::setRange(float range) {
+    _range = range;
     // Based off sample value of range 13 giving 0.35, 0.44 coeffs.
     _linear = (13.0f / range) * 0.35f;
     _quadratic = pow(13.0f / range, 2.0f) * 0.44f;

@@ -1,6 +1,6 @@
 #version 330 core
 #define PI 3.1415926535
-#define MAX_NR_TEXTURES 16;
+#define MAX_NR_TEXTURES 16
 
 struct Material {
     sampler2D texturesDiffuse[MAX_NR_TEXTURES];
@@ -42,7 +42,6 @@ in vec2 TexCoords;
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
-    // Calc
     vec3 lightDir = normalize(-light.direction);
     float diff = max(dot(normal, lightDir), 0.0);
     // specular shading

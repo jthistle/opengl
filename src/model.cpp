@@ -96,7 +96,6 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
     }
 
     Mesh outMesh(vertices, indices, textures);
-    std::cout << "shininess" << (float)shininess << std::endl;
     outMesh.shininess = shininess;    
     return outMesh;
 } 
