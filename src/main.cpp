@@ -75,7 +75,7 @@ int main()
 
     // Lights
     auto dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
-        vec3(1.0f, 0.95f, 0.8f) * 0.2f, 
+        vec3(1.0f, 0.95f, 0.8f), 
         // vec3(0.0f),
         // vec3(1.0f, 0.4f, 0.2f), 
         0.05f,
@@ -89,7 +89,7 @@ int main()
     auto light1 = shared_ptr<PointLight>(new PointLight(
         vec3(0.0f, 1.0f, 5.0f), vec3(1.0f, 0.0f, 0.0f), 0.1f, 0.5f, 1.0f, 25.0f
     ));
-    renderer->pointLights.push_back(light1);
+    // renderer->pointLights.push_back(light1);
 
     renderer->setSkyboxColor(vec3(0.02f, 0.1f, 0.3f));
 

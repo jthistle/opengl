@@ -16,6 +16,8 @@ protected:
     glm::vec3 _diffuseVec;
     glm::vec3 _specularVec;
 
+    glm::mat4 _projectionMatrix;
+
 public:
     glm::vec3 position;
 
@@ -27,6 +29,8 @@ public:
     void setAmbient(float val);
     void setDiffuse(float val);
     void setSpecular(float val);
+
+    glm::mat4 getProjectionMatrix() { return _projectionMatrix; }
 };
 
 #endif /* __LIGHT__ */

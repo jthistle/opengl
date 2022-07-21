@@ -19,14 +19,25 @@
 
 class Renderer {
 private:
+    const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
+
     GLFWwindow *_window;
     glm::vec2 _targetResolution;
+
+    // Shadows
+    unsigned int _depthMap;
+    unsigned int _depthMapFBO;
 
     // Draw configuration
     glm::vec3 _skyboxColor;
 
     // Shaders
     Shader _objectShader;
+    Shader _depthShader;
+    Shader _quadShader;
+
+    // Debug
+    unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
 
 public:
     Camera camera;
@@ -37,7 +48,9 @@ public:
 private:
     void shaderConfigureLights();
     void shaderConfigureCameraViewpoint();
-    void render();
+    void render(Shader &shader);
+
+    void renderQuad();
 
 public:
     Renderer(int resX, int resY);

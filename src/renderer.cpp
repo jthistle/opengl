@@ -103,16 +103,72 @@ int Renderer::init() {
     glfwSetFramebufferSizeCallback(_window, __onFramebufferSizeChange);
     glfwSetCursorPosCallback(_window, __onMouseMove);
 
+    // Shadows setup
+    glGenFramebuffers(1, &_depthMapFBO);  
+    glGenTextures(1, &_depthMap);
+    glBindTexture(GL_TEXTURE_2D, _depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor); 
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
     // Debug config
     debugConfiguration();
 
-    // Compile basic shader
+    // Compile basic shaders
     _objectShader = Shader("../src/shaders/object.vs", "../src/shaders/object.fs");
+    _depthShader = Shader("../src/shaders/simpleDepthShader.vs", "../src/shaders/simpleDepthShader.fs");
+    _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
 
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f)
     ));
+
+
+    // Quad stuff
+    float quadVerts[] = {
+        // Screen pos       Texture coord
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+    };
+
+    unsigned int quadInds[] = {
+        0, 1, 2,
+        0, 2, 3,
+    };
+
+    glGenVertexArrays(1, &_quadVAO);
+    glGenBuffers(1, &_quadVBO);
+    glGenBuffers(1, &_quadEBO);
+  
+    glBindVertexArray(_quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, _quadVBO);
+
+    glBufferData(GL_ARRAY_BUFFER, 4 * 5 * sizeof(float), &quadVerts[0], GL_STATIC_DRAW);  
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), &quadInds[0], GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);	
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);	
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
+    glBindVertexArray(0);
+
+    _quadTexture = _depthMap;
 
     return 0;
 }
@@ -133,6 +189,11 @@ void Renderer::shaderConfigureCameraViewpoint() {
     _objectShader.setMat4("view", camera.generateView());
     _objectShader.setMat4("projection", camera.projection); 
     _objectShader.setVec3("viewPos", camera.cameraPos);
+    _objectShader.setMat4("lightSpaceMatrix", dirLight->getProjectionMatrix());
+
+    glActiveTexture(GL_TEXTURE15);
+    glBindTexture(GL_TEXTURE_2D, _depthMap);
+    _objectShader.setInt("shadowMap", 15);
 }
 
 /**
@@ -140,24 +201,47 @@ void Renderer::shaderConfigureCameraViewpoint() {
  * 
  * This is not an external function! Shaders must be configured accordingly before calling.
  */
-void Renderer::render() {
-    _objectShader.use();
+void Renderer::render(Shader &shader) {
+    shader.use();
     for (auto i = objects.begin(); i != objects.end(); ++i) {
-        (*i)->draw(_objectShader);
+        (*i)->draw(shader);
     }
+}
+
+void Renderer::renderQuad() {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _quadTexture);
+
+    _quadShader.use();
+    _quadShader.setInt("quadTexture", 0);
+
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 void Renderer::draw() {
     glm::mat4 model;
     glm::mat4 view;
 
-    // Clear buffers
+    // Generate depth map (just from directional light for now)
+    _depthShader.use();
+    _depthShader.setMat4("lightSpaceMatrix", dirLight->getProjectionMatrix());
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    render(_depthShader);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Visible render pass
     glClearColor(_skyboxColor.x, _skyboxColor.y, _skyboxColor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     shaderConfigureLights();
     shaderConfigureCameraViewpoint();
-    render();
+    render(_objectShader);
+
+    // renderQuad();
 
     glfwSwapBuffers(_window);
     glfwPollEvents();    
