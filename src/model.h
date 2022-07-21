@@ -16,8 +16,8 @@
 class Model 
 {
     public:
-        Model(std::string path)
-        {
+        Model(Mesh &mesh) { meshes.push_back(mesh); }
+        Model(std::string path) {
             loadModel(path);
         }
         void draw(Shader &shader);	
