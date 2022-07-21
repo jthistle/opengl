@@ -7,11 +7,15 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "camera.h"
 #include "model.h"
 #include "directionalLight.h"
 #include "pointLight.h"
+#include "gameObject.h"
 
 class Renderer {
 private:
@@ -26,7 +30,7 @@ private:
 
 public:
     Camera camera;
-    std::vector<std::shared_ptr<Model>> models;
+    std::vector<std::shared_ptr<GameObject>> objects;
     std::shared_ptr<DirectionalLight> dirLight;
     std::vector<std::shared_ptr<PointLight>> pointLights;
 
@@ -59,7 +63,6 @@ public:
     // Singleton
     static Renderer* createRenderer(int resX, int resY);
     static void destroyRenderer();
-
 };
 
 

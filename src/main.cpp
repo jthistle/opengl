@@ -13,6 +13,7 @@
 #include "pointLight.h"
 #include "model.h"
 #include "mesh.h"
+#include "gameObject.h"
 
 #include "renderer.h"
 
@@ -43,8 +44,8 @@ int main()
     Renderer *renderer = Renderer::createRenderer(1200, 900);
 
     // Setup scene
-    auto backpack = shared_ptr<Model>(new Model("../src/backpack/backpack.obj"));
-    renderer->models.push_back(backpack);
+    auto backpack = shared_ptr<GameObject>(new GameObject("../src/backpack/backpack.obj"));
+    renderer->objects.push_back(backpack);
 
     // Plane
     Texture pixel("../src/pixel.png", GL_RGB);
@@ -65,8 +66,12 @@ int main()
     Mesh plane(planeVerts, planeIndices, planeTextures);
     plane.shininess = 128.0f;
 
-    auto planeModel = shared_ptr<Model>(new Model(plane)); 
-    renderer->models.push_back(planeModel);
+    auto planeModel = Model(plane); 
+    auto planeObj = shared_ptr<GameObject>(new GameObject(planeModel));
+    renderer->objects.push_back(planeObj);
+
+    planeObj->scale = glm::vec3(20.0f);
+    planeObj->position = glm::vec3(0.0f, -1.7f, 0.0f);
 
     // Lights
     auto dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(

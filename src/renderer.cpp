@@ -4,9 +4,6 @@
 #include <cmath>
 
 #include <stb_image.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "shader.h"
 #include "texture.h"
@@ -144,12 +141,8 @@ void Renderer::shaderConfigureCameraViewpoint() {
  * This is not an external function! Shaders must be configured accordingly before calling.
  */
 void Renderer::render() {
-    glm::mat4 model;
     _objectShader.use();
-    for (auto i = models.begin(); i != models.end(); ++i) {
-        // TODO: allow different positioning of models
-        model = glm::mat4(1.0f);
-        _objectShader.setMat4("model", model);
+    for (auto i = objects.begin(); i != objects.end(); ++i) {
         (*i)->draw(_objectShader);
     }
 }
