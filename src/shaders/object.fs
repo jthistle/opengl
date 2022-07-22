@@ -7,6 +7,7 @@ in VS_OUT {
     vec3 Normal;
     vec2 TexCoords;
     vec4 FragPosLightSpace;
+    mat3 TBN;
 } fs_in;
 
 struct Material {
@@ -134,7 +135,9 @@ void main()
         // obtain normal from normal map in range [0,1]
         norm = texture(material.textureNormal, fs_in.TexCoords).rgb;
         // transform normal vector to range [-1,1]
-        norm = normalize(norm * 2.0 - 1.0);   
+        norm = norm * 2.0 - 1.0; 
+        // transform from tangent space to world space
+        norm = normalize(fs_in.TBN * norm); 
     }
 
     // phase 1: Directional lighting
