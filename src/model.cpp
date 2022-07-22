@@ -86,10 +86,12 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
     if(mesh->mMaterialIndex >= 0)
     {
         aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
-        vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texturesDiffuse");
+        vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texturesDiffuse", true);
         textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-        vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texturesSpecular");
+        vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texturesSpecular", false);
         textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "textureNormal", false);
+        textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
         
         // Other properties
         material->Get(AI_MATKEY_SHININESS, shininess);
@@ -100,7 +102,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
     return outMesh;
 } 
 
-vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName)
+vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName, bool gammaCorrect)
 {
     vector<Texture> textures;
     for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
@@ -118,7 +120,7 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
         }
 
         if (textureIndex == -1) {
-            Texture texture((directory + "/" + name).c_str(), GL_RGB);
+            Texture texture((directory + "/" + name).c_str(), GL_RGB, gammaCorrect);
             texture.type = typeName;
             texture.path = name;
             textures.push_back(texture);
@@ -129,4 +131,10 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
     }
 
     return textures;
-}  
+} 
+
+void Model::setUseNormalMap(bool value) {
+    for (auto i = 0; i < meshes.size(); ++i) {
+        meshes[i].setUseNormalMap(value);
+    }
+}

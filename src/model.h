@@ -22,6 +22,8 @@ class Model
             loadModel(path);
         }
         void draw(Shader &shader);	
+        void setUseNormalMap(bool val);
+        
     private:
         // model data
         vector<Texture> textures_loaded; 
@@ -31,7 +33,7 @@ class Model
         void loadModel(std::string path);
         void processNode(aiNode *node, const aiScene *scene);
         Mesh processMesh(aiMesh *mesh, const aiScene *scene);
-        std::vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, std::string typeName);
+        std::vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, std::string typeName, bool gammaCorrect);
 };
 
 #endif /* __MODEL__ */

@@ -14,6 +14,8 @@ public:
     float getRange() { return _range; }
     void setRange(float range);
     void bind(Shader &shader, int index);
+
+    // glm::mat4 generateProjectionMatrix() override;
 };
 
 #endif /* __POINTLIGHT__ */

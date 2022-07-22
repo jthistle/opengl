@@ -17,7 +17,7 @@ public:
     std::string type;
     std::string path;
   
-    Texture(const char* imagePath, GLuint colorMode);
+    Texture(const char* imagePath, GLuint colorMode, bool gammaCorrect);
     void bind(GLuint textureSlot);
 };
   

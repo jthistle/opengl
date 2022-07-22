@@ -41,12 +41,21 @@ void Mesh::draw(Shader &shader)
 {
     unsigned int diffuseNr = 1;
     unsigned int specularNr = 1;
+    shader.setBool("material.hasNormalMap", false);
     for(unsigned int i = 0; i < textures.size(); i++)
     {
         glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
         // retrieve texture number (the N in diffuse_textureN)
         string number;
         string name = textures[i].type;
+
+        if (name == "textureNormal" && _useNormalMap) {
+            shader.setInt("material.textureNormal", i);
+            shader.setBool("material.hasNormalMap", true);
+            glBindTexture(GL_TEXTURE_2D, textures[i].ID);
+            continue;
+        }
+
         if(name == "texturesDiffuse")
             number = std::to_string(diffuseNr++);
         else if(name == "texturesSpecular")

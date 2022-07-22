@@ -134,7 +134,6 @@ int Renderer::init() {
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f)
     ));
 
-
     // Quad stuff
     float quadVerts[] = {
         // Screen pos       Texture coord
@@ -189,7 +188,7 @@ void Renderer::shaderConfigureCameraViewpoint() {
     _objectShader.setMat4("view", camera.generateView());
     _objectShader.setMat4("projection", camera.projection); 
     _objectShader.setVec3("viewPos", camera.cameraPos);
-    _objectShader.setMat4("lightSpaceMatrix", dirLight->getProjectionMatrix());
+    _objectShader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
 
     glActiveTexture(GL_TEXTURE15);
     glBindTexture(GL_TEXTURE_2D, _depthMap);
@@ -226,7 +225,7 @@ void Renderer::draw() {
 
     // Generate depth map (just from directional light for now)
     _depthShader.use();
-    _depthShader.setMat4("lightSpaceMatrix", dirLight->getProjectionMatrix());
+    _depthShader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -241,6 +240,7 @@ void Renderer::draw() {
     shaderConfigureCameraViewpoint();
     render(_objectShader);
 
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     // renderQuad();
 
     glfwSwapBuffers(_window);

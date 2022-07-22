@@ -10,6 +10,7 @@ public:
     DirectionalLight(glm::vec3 color, float ambient, float diffuse, float specular, glm::vec3 direction);
 
     void bind(Shader& shader);
+    glm::mat4 generateProjectionMatrix() override;
 };
 
 #endif /* __DIRECTIONALLIGHT__ */

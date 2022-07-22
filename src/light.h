@@ -30,7 +30,7 @@ public:
     void setDiffuse(float val);
     void setSpecular(float val);
 
-    glm::mat4 getProjectionMatrix() { return _projectionMatrix; }
+    virtual glm::mat4 generateProjectionMatrix() { return glm::mat4(1.0f); }
 };
 
 #endif /* __LIGHT__ */

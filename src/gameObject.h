@@ -22,6 +22,7 @@ public:
     GameObject(std::string modelPath);
 
     void draw(Shader &shader);
+    void setUseNormalMap(bool val) { _model.setUseNormalMap(val); }
 };
 
 #endif /* __GAMEOBJECT__ */

@@ -12,7 +12,9 @@ in VS_OUT {
 struct Material {
     sampler2D texturesDiffuse[MAX_NR_TEXTURES];
     sampler2D texturesSpecular[MAX_NR_TEXTURES];
+    sampler2D textureNormal;
     float shininess;
+    bool hasNormalMap;
 }; 
 uniform Material material;
 
@@ -128,6 +130,12 @@ void main()
     vec3 norm = normalize(fs_in.Normal);
     vec3 viewDir = normalize(viewPos - fs_in.FragPos);
 
+    if (material.hasNormalMap) {
+        // obtain normal from normal map in range [0,1]
+        norm = texture(material.textureNormal, fs_in.TexCoords).rgb;
+        // transform normal vector to range [-1,1]
+        norm = normalize(norm * 2.0 - 1.0);   
+    }
 
     // phase 1: Directional lighting
     vec3 result = CalcDirLight(dirLight, norm, viewDir);
