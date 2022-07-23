@@ -29,8 +29,6 @@ public:
     void setAmbient(float val);
     void setDiffuse(float val);
     void setSpecular(float val);
-
-    virtual glm::mat4 generateProjectionMatrix() { return glm::mat4(1.0f); }
 };
 
 #endif /* __LIGHT__ */

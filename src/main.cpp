@@ -86,22 +86,24 @@ int main()
     // Lights
     auto dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
         // vec3(1.0f, 0.95f, 0.8f), 
-        vec3(0.0f),
+        // vec3(0.0f),
         // vec3(1.0f, 0.4f, 0.2f), 
+        vec3(1.0f, 0.6f, 0.0f) * 0.2f,
         0.05f,
         0.5f,
         1.0f,
-        vec3(1.0f, -1.0f, -1.0f)
+        vec3(1.0f, -5.0f, -1.0f)
         // vec3(1.0f, -0.2f, -1.0f)
     ));
     renderer->dirLight = dirLight;
 
     auto light1 = shared_ptr<PointLight>(new PointLight(
-        vec3(0.0f, 1.0f, 5.0f), vec3(1.0f), 0.1f, 0.5f, 1.0f, 30.0f
+        vec3(3.0f, 4.0f, 5.0f), vec3(1.0f), 0.01f, 0.5f, 1.0f, 100.0f
     ));
     renderer->pointLights.push_back(light1);
 
-    renderer->setSkyboxColor(vec3(0.02f, 0.1f, 0.3f));
+    // renderer->setSkyboxColor(vec3(0.02f, 0.1f, 0.3f));
+    renderer->setSkyboxColor(vec3(0.0f, 0.005f, 0.01f));
 
     // Camera
     renderer->camera = Camera(50.0f, 1200.0f / 900.0f, 0.1f, 100.0f);
@@ -116,13 +118,19 @@ int main()
         planeObj->setUseNormalMap(doNormalMap);
         backpack->setUseNormalMap(doNormalMap);
 
+        if ((int)(elapsedTime * 2.0f) % 2 == 0) {
+            light1->setColor(glm::vec3(1.0f, 0.0f, 0.0f));
+        } else {
+            light1->setColor(glm::vec3(0.0f, 0.0f, 1.0f));
+        }
+
         // Update timings
         elapsedTime = (float) glfwGetTime();
         deltaTime = elapsedTime - lastTimestamp;
         lastTimestamp = elapsedTime;
 
         // renderer->dirLight->direction = glm::vec3(1.0f, -0.75f + 0.5f * sin(elapsedTime), -1.0f);
-        light1->position = glm::vec3(5.0f * cos(elapsedTime), 1.0f, 5.0f * sin(elapsedTime));
+        // light1->position = glm::vec3(5.0f * cos(3.0f * elapsedTime), 2.0f, 5.0f * sin(3.0f * elapsedTime));
 
         processInput(renderer->getWindow(), renderer->camera, deltaTime);
 

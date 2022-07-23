@@ -27,13 +27,15 @@ private:
     // Shadows
     unsigned int _depthMap;
     unsigned int _depthMapFBO;
+    unsigned int _depthCubemap;
 
     // Draw configuration
     glm::vec3 _skyboxColor;
 
     // Shaders
     Shader _objectShader;
-    Shader _depthShader;
+    Shader _depthShaderDir;
+    Shader _depthShaderPoint;
     Shader _quadShader;
 
     // Debug

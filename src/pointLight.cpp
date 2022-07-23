@@ -1,3 +1,4 @@
+#include <glm/gtc/matrix_transform.hpp>
 #include "pointLight.h"
 
 PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float diffuse, float specular, float range)
@@ -19,4 +20,27 @@ void PointLight::bind(Shader& shader, int i) {
     shader.setVec3("pointLights[" + std::to_string(i) + "].ambient", _ambientVec);
     shader.setVec3("pointLights[" + std::to_string(i) + "].diffuse", _diffuseVec);
     shader.setVec3("pointLights[" + std::to_string(i) + "].specular", _specularVec);
+}
+
+
+std::vector<glm::mat4> PointLight::generateProjectionMatrices() {
+    float aspect = 1.0f; // TODO not hardcode 
+    float near = 1.0f;
+    float far = _range;
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, near, far); 
+    std::vector<glm::mat4> shadowTransforms;
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(position, position + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
+
+    return shadowTransforms;
 }

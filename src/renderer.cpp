@@ -121,12 +121,31 @@ int Renderer::init() {
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
+    // Point light shadows cubemap
+    glGenTextures(1, &_depthCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, _depthCubemap);
+    for (unsigned int i = 0; i < 6; ++i)
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
+                        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);  
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);  
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthCubemap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
     // Debug config
     debugConfiguration();
 
     // Compile basic shaders
     _objectShader = Shader("../src/shaders/object.vs", "../src/shaders/object.fs");
-    _depthShader = Shader("../src/shaders/simpleDepthShader.vs", "../src/shaders/simpleDepthShader.fs");
+    _depthShaderDir = Shader("../src/shaders/depthShaderDirectional.vs", "../src/shaders/depthShaderDirectional.fs");
+    _depthShaderPoint = Shader("../src/shaders/depthShaderPoint.vs", "../src/shaders/depthShaderPoint.fs", "../src/shaders/depthShaderPoint.gs");
     _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
 
     // Set default dirLight
@@ -193,6 +212,12 @@ void Renderer::shaderConfigureCameraViewpoint() {
     glActiveTexture(GL_TEXTURE15);
     glBindTexture(GL_TEXTURE_2D, _depthMap);
     _objectShader.setInt("shadowMap", 15);
+
+    // Temp point light setup
+    glActiveTexture(GL_TEXTURE14);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, _depthCubemap);
+    _objectShader.setInt("shadowMapPoint", 14); // debug
+    _objectShader.setFloat("far_plane", pointLights.at(0)->getRange()); // debug
 }
 
 /**
@@ -220,16 +245,39 @@ void Renderer::renderQuad() {
 }
 
 void Renderer::draw() {
-    glm::mat4 model;
-    glm::mat4 view;
-
     // Generate depth map (just from directional light for now)
-    _depthShader.use();
-    _depthShader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
+    _depthShaderDir.use();
+    _depthShaderDir.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
-    render(_depthShader);
+    render(_depthShaderDir);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Point light depth map
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthCubemap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
+    _depthShaderPoint.use();
+    _depthShaderPoint.setVec3("lightPos", pointLights.at(0)->position);
+    _depthShaderPoint.setFloat("far_plane", pointLights.at(0)->getRange());
+    auto matrices = pointLights.at(0)->generateProjectionMatrices();
+    for (int i = 0; i < matrices.size(); i++) {
+        _depthShaderPoint.setMat4("shadowMatrices[" + std::to_string(i) + "]", matrices[i]);
+    }
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    render(_depthShaderPoint);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Visible render pass
@@ -252,7 +300,9 @@ bool Renderer::shouldClose() {
 }
 
 void Renderer::debugConfiguration() {
-    int nrAttributes;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
-    std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes << std::endl;
+    int integer;
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &integer);
+    std::cout << "Maximum nr of vertex attributes supported: " << integer << std::endl;
+    glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &integer);
+    std::cout << "Maximum nr of textures in frag shader: " << integer << std::endl;
 }

@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
   
+#include <vector>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -13,12 +14,20 @@
 
 class Shader
 {
+private:
+    std::vector<unsigned int> _shaderParts; 
+    void init();
+    void loadShader(const char* path, GLuint shaderType);
+    void link();
+
 public:
     // the program ID
     unsigned int ID;
   
-    Shader() { ID = -1; }
+    Shader() {}
     Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath);
+    
     // use/activate the shader
     void use() const;
     // utility uniform functions

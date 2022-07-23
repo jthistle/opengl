@@ -1,6 +1,7 @@
 #ifndef __POINTLIGHT__
 #define __POINTLIGHT__
 
+#include <vector>
 #include "light.h"
 
 class PointLight : public Light {
@@ -15,7 +16,7 @@ public:
     void setRange(float range);
     void bind(Shader &shader, int index);
 
-    // glm::mat4 generateProjectionMatrix() override;
+    std::vector<glm::mat4> generateProjectionMatrices();
 };
 
 #endif /* __POINTLIGHT__ */
