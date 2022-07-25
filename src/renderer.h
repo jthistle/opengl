@@ -29,6 +29,9 @@ private:
     unsigned int _depthMapFBO;
     unsigned int _depthCubemap;
 
+    // Deferred buffers
+    unsigned int _gBuffer, _gAlbedoSpec, _gNormal, _gPosition, _gDepth;
+
     // Draw configuration
     glm::vec3 _skyboxColor;
 
@@ -37,6 +40,8 @@ private:
     Shader _depthShaderDir;
     Shader _depthShaderPoint;
     Shader _quadShader;
+    Shader _gBufferShader;
+    Shader _deferredRender;
 
     // Debug
     unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
@@ -48,9 +53,12 @@ public:
     std::vector<std::shared_ptr<PointLight>> pointLights;
 
 private:
-    void shaderConfigureLights();
-    void shaderConfigureCameraViewpoint();
+    void shaderConfigureLights(Shader &shader);
+    void shaderConfigureCameraViewpoint(Shader &shader);
+    void shaderConfigureDeferred(Shader &shader);
     void render(Shader &shader);
+    
+    void drawDeferred();
 
     void renderQuad();
 

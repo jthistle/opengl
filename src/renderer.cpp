@@ -139,6 +139,47 @@ int Renderer::init() {
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
+    // Init gBuffer
+    glGenFramebuffers(1, &_gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);
+    
+    // - position color buffer
+    glGenTextures(1, &_gPosition);
+    glBindTexture(GL_TEXTURE_2D, _gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _gPosition, 0);
+    
+    // - normal color buffer
+    glGenTextures(1, &_gNormal);
+    glBindTexture(GL_TEXTURE_2D, _gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, _gNormal, 0);
+    
+    // - color + specular color buffer
+    glGenTextures(1, &_gAlbedoSpec);
+    glBindTexture(GL_TEXTURE_2D, _gAlbedoSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, _gAlbedoSpec, 0);
+
+    // Attach depth map to framebuffer
+    glGenTextures(1, &_gDepth);
+    glBindTexture(GL_TEXTURE_2D, _gDepth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, _targetResolution.x, _targetResolution.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _gDepth, 0);
+    
+    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    unsigned int attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
     // Debug config
     debugConfiguration();
 
@@ -147,13 +188,15 @@ int Renderer::init() {
     _depthShaderDir = Shader("../src/shaders/depthShaderDirectional.vs", "../src/shaders/depthShaderDirectional.fs");
     _depthShaderPoint = Shader("../src/shaders/depthShaderPoint.vs", "../src/shaders/depthShaderPoint.fs", "../src/shaders/depthShaderPoint.gs");
     _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
+    _gBufferShader = Shader("../src/shaders/gBuffer.vs", "../src/shaders/gBuffer.fs");
+    _deferredRender = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
 
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f)
     ));
 
-    // Quad stuff
+    // Quad stuff (for debug)
     float quadVerts[] = {
         // Screen pos       Texture coord
         -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
@@ -186,38 +229,59 @@ int Renderer::init() {
 
     glBindVertexArray(0);
 
-    _quadTexture = _depthMap;
+    // Debug: choose texture to display on quad
+    _quadTexture = _gPosition;
 
     return 0;
 }
 
-void Renderer::shaderConfigureLights() {
+void Renderer::shaderConfigureLights(Shader &shader) {
     int numberPointLights = pointLights.size();
 
-    _objectShader.use();
-    _objectShader.setInt("numberPointLights", numberPointLights);
-    dirLight->bind(_objectShader);
+    shader.use();
+    shader.setInt("numberPointLights", numberPointLights);
+    dirLight->bind(shader);
     for (int i = 0; i < numberPointLights; i++) {
-        pointLights[i]->bind(_objectShader, i);
+        pointLights[i]->bind(shader, i);
     } 
-}
 
-void Renderer::shaderConfigureCameraViewpoint() {
-    _objectShader.use();
-    _objectShader.setMat4("view", camera.generateView());
-    _objectShader.setMat4("projection", camera.projection); 
-    _objectShader.setVec3("viewPos", camera.cameraPos);
-    _objectShader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
-
+    // Bind shadow maps
     glActiveTexture(GL_TEXTURE15);
     glBindTexture(GL_TEXTURE_2D, _depthMap);
-    _objectShader.setInt("shadowMap", 15);
+    shader.setInt("shadowMap", 15);
 
-    // Temp point light setup
+    // HACK point light index zero only
     glActiveTexture(GL_TEXTURE14);
     glBindTexture(GL_TEXTURE_CUBE_MAP, _depthCubemap);
-    _objectShader.setInt("shadowMapPoint", 14); // debug
-    _objectShader.setFloat("far_plane", pointLights.at(0)->getRange()); // debug
+    shader.setInt("shadowMapPoint", 14); // debug
+    shader.setFloat("far_plane", pointLights.at(0)->getRange()); // debug
+}
+
+void Renderer::shaderConfigureCameraViewpoint(Shader &shader) {
+    shader.use();
+    shader.setMat4("view", camera.generateView());
+    shader.setMat4("projection", camera.projection); 
+    shader.setVec3("viewPos", camera.cameraPos);
+    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
+}
+
+void Renderer::shaderConfigureDeferred(Shader &shader) {
+    shader.use();
+    
+    // Load gBuffer textures
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _gAlbedoSpec);
+    shader.setInt("gAlbedoSpec", 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, _gNormal);
+    shader.setInt("gNormal", 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, _gPosition);
+    shader.setInt("gPosition", 2);
+
+    shader.setVec3("viewPos", camera.cameraPos);
+    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
+    shader.setVec3("skyboxColor", _skyboxColor);
 }
 
 /**
@@ -244,28 +308,46 @@ void Renderer::renderQuad() {
     glBindVertexArray(0);
 }
 
+void Renderer::drawDeferred() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
+    glClearColor(_skyboxColor.x, _skyboxColor.y, _skyboxColor.z, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    shaderConfigureDeferred(_deferredRender);
+    shaderConfigureLights(_deferredRender);
+    
+    // Draw onto quad
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
 void Renderer::draw() {
+    // Generate gBuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);  
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shaderConfigureCameraViewpoint(_gBufferShader);
+    render(_gBufferShader);
+
     // Generate depth map (just from directional light for now)
     glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depthMap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     _depthShaderDir.use();
     _depthShaderDir.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
     render(_depthShaderDir);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Point light depth map
     glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthCubemap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     _depthShaderPoint.use();
     _depthShaderPoint.setVec3("lightPos", pointLights.at(0)->position);
@@ -275,18 +357,11 @@ void Renderer::draw() {
         _depthShaderPoint.setMat4("shadowMatrices[" + std::to_string(i) + "]", matrices[i]);
     }
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
     render(_depthShaderPoint);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Visible render pass
-    glClearColor(_skyboxColor.x, _skyboxColor.y, _skyboxColor.z, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
-    shaderConfigureLights();
-    shaderConfigureCameraViewpoint();
-    render(_objectShader);
+    drawDeferred();
 
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     // renderQuad();
@@ -305,4 +380,6 @@ void Renderer::debugConfiguration() {
     std::cout << "Maximum nr of vertex attributes supported: " << integer << std::endl;
     glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &integer);
     std::cout << "Maximum nr of textures in frag shader: " << integer << std::endl;
+    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &integer);
+    std::cout << "Maximum nr of color attachments: " << integer << std::endl;
 }
