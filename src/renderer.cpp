@@ -231,7 +231,7 @@ int Renderer::init() {
     glBindVertexArray(0);
 
     // Debug: choose texture to display on quad
-    _quadTexture = _gNormal;
+    _quadTexture = _depthMap;
 
     return 0;
 }
@@ -294,7 +294,6 @@ void Renderer::shaderConfigureDeferred(Shader &shader) {
     shader.setInt("gPosition", 2);
 
     shader.setVec3("viewPos", camera.cameraPos);
-    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
     shader.setVec3("skyboxColor", _skyboxColor);
 }
 
@@ -352,11 +351,11 @@ void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light, unsigned int
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     _depthShaderDir.use();
     _depthShaderDir.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glClear(GL_DEPTH_BUFFER_BIT);
     render(_depthShaderDir);
 }
 

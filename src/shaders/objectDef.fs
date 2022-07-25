@@ -24,6 +24,7 @@ struct DirLight {
     vec3 specular;
 };
 uniform DirLight dirLight;
+uniform mat4 lightSpaceMatrix;
 
 struct PointLight {    
     vec3 position;
@@ -123,8 +124,8 @@ vec3 CalcDirLight(in FragData data, in DirLight light, in vec3 viewDir)
     vec3 specular = light.specular * spec * vec3(data.Specular);
 
     // Shadow
-    // float shadow = ShadowCalculation(fs_in.FragPosLightSpace, normal, lightDir);  
-    float shadow = 0.0; // TODO calculate position in light space
+    vec4 fragPosLightSpace = lightSpaceMatrix * vec4(data.FragPos, 1.0); 
+    float shadow = ShadowCalculation(fragPosLightSpace, data.Normal, lightDir);  
 
     return ambient + (1.0 - shadow) * (diffuse + specular);
 }

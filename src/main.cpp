@@ -85,20 +85,20 @@ int main()
 
     // Lights
     auto dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
-        // vec3(1.0f, 0.95f, 0.8f), 
-        vec3(0.0f),
+        vec3(1.0f, 0.95f, 0.8f), 
+        // vec3(0.0f),
         // vec3(1.0f, 0.4f, 0.2f), 
         // vec3(1.0f, 0.6f, 0.0f) * 0.2f,
         0.05f,
         0.5f,
         1.0f,
-        vec3(1.0f, -5.0f, -1.0f)
+        vec3(1.0f, -1.0f, -1.0f)
         // vec3(1.0f, -0.2f, -1.0f)
     ));
     renderer->dirLight = dirLight;
 
     auto light1 = shared_ptr<PointLight>(new PointLight(
-        vec3(3.0f, 4.0f, 5.0f), vec3(1.0f), 0.1f, 0.5f, 1.0f, 50.0f
+        vec3(3.0f, 4.0f, 5.0f), vec3(0.0f), 0.1f, 0.5f, 1.0f, 50.0f
     ));
     renderer->pointLights.push_back(light1);
 
