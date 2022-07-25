@@ -1,10 +1,11 @@
 #include "light.h"
 
-Light::Light(glm::vec3 position_, glm::vec3 color, float ambient, float diffuse, float specular) {
+Light::Light(glm::vec3 position_, glm::vec3 color, float ambient, float diffuse, float specular, bool castsShadow) {
     position = position_;
     _ambient = ambient;
     _diffuse = diffuse;
     _specular = specular;
+    _castsShadow = castsShadow;
 
     setColor(color);
 }

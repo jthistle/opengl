@@ -2,7 +2,7 @@
 #include "pointLight.h"
 
 PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float diffuse, float specular, float range)
-: Light(position, color, ambient, diffuse, specular) {
+: Light(position, color, ambient, diffuse, specular, true) {
     setRange(range);
 }
 

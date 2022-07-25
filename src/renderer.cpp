@@ -106,21 +106,6 @@ int Renderer::init() {
 
     // Shadows setup
     glGenFramebuffers(1, &_depthMapFBO);  
-    glGenTextures(1, &_depthMap);
-    glBindTexture(GL_TEXTURE_2D, _depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor); 
-
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depthMap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     // Point light shadows cubemap
     glGenTextures(1, &_depthCubemap);
@@ -231,7 +216,7 @@ int Renderer::init() {
     glBindVertexArray(0);
 
     // Debug: choose texture to display on quad
-    _quadTexture = _depthMap;
+    _quadTexture = _gNormal;
 
     return 0;
 }
@@ -242,20 +227,14 @@ int Renderer::init() {
  */
 void Renderer::shaderConfigureLights(Shader &shader) {
     int numberPointLights = pointLights.size();
+    int textureNumber = 8;
 
     shader.use();
     shader.setInt("numberPointLights", numberPointLights);
-    dirLight->bind(shader);
+    dirLight->bind(shader, textureNumber);
     for (int i = 0; i < numberPointLights; i++) {
         pointLights[i]->bind(shader, i);
     } 
-
-    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
-
-    // Bind shadow maps
-    glActiveTexture(GL_TEXTURE15);
-    glBindTexture(GL_TEXTURE_2D, _depthMap);
-    shader.setInt("shadowMap", 15);
 
     // HACK point light index zero only
     glActiveTexture(GL_TEXTURE14);
@@ -346,16 +325,8 @@ void Renderer::renderGBuffer() {
  * @param framebuf 
  * @param texture 
  */
-void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light, unsigned int framebuf, unsigned int texture) {
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuf);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    _depthShaderDir.use();
-    _depthShaderDir.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
+void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light) {
+    light->configureForDepthMap(_depthShaderDir, _depthMapFBO);
     render(_depthShaderDir);
 }
 
@@ -410,7 +381,7 @@ void Renderer::drawDeferred() {
  */
 void Renderer::draw() {
     // Directional light depth map 
-    generateDepthMap(dirLight, _depthMapFBO, _depthMap);
+    generateDepthMap(dirLight);
 
     // Point light depth map (just first one for now)
     generateDepthMap(pointLights.at(0), _depthMapFBO, _depthCubemap);

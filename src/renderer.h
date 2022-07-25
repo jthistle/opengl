@@ -29,7 +29,6 @@ private:
     glm::vec2 _targetResolution;
 
     // Shadow maps
-    unsigned int _depthMap;
     unsigned int _depthMapFBO;
     unsigned int _depthCubemap;
 
@@ -65,7 +64,7 @@ private:
     void render(Shader &shader);
     void renderGBuffer();
 
-    void generateDepthMap(std::shared_ptr<DirectionalLight> light, unsigned int framebuf, unsigned int texture);
+    void generateDepthMap(std::shared_ptr<DirectionalLight> light);
     void generateDepthMap(std::shared_ptr<PointLight> light, unsigned int framebuf, unsigned int cubemap);
     
     void drawDeferred();

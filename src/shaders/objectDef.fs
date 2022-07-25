@@ -22,9 +22,12 @@ struct DirLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    bool castsShadow;
+    sampler2D shadowMap;
+    mat4 lightSpaceMatrix;
 };
 uniform DirLight dirLight;
-uniform mat4 lightSpaceMatrix;
 
 struct PointLight {    
     vec3 position;
@@ -41,7 +44,6 @@ uniform PointLight pointLights[16];
 uniform int numberPointLights;
 
 uniform vec3 viewPos;
-uniform sampler2D shadowMap;
 uniform samplerCube shadowMapPoint;
 
 // todo per light
@@ -54,7 +56,7 @@ uniform sampler2D gPosition;
 
 uniform vec3 skyboxColor;
 
-float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
+float ShadowCalculation(in vec4 fragPosLightSpace, in vec3 normal, in vec3 lightDir, in sampler2D shadowMap) {
     // perform perspective divide
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
      // transform to [0,1] range
@@ -124,8 +126,11 @@ vec3 CalcDirLight(in FragData data, in DirLight light, in vec3 viewDir)
     vec3 specular = light.specular * spec * vec3(data.Specular);
 
     // Shadow
-    vec4 fragPosLightSpace = lightSpaceMatrix * vec4(data.FragPos, 1.0); 
-    float shadow = ShadowCalculation(fragPosLightSpace, data.Normal, lightDir);  
+    float shadow = 0.0;
+    if (light.castsShadow) {
+        vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(data.FragPos, 1.0); 
+        shadow = ShadowCalculation(fragPosLightSpace, data.Normal, lightDir, light.shadowMap);  
+    }
 
     return ambient + (1.0 - shadow) * (diffuse + specular);
 }
