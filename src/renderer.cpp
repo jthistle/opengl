@@ -14,8 +14,9 @@ using std::string;
 using std::vector;
 using std::shared_ptr;
 
-
+//
 // Singleton management
+//
 static Renderer *renderer = NULL;
 
 Renderer* Renderer::createRenderer(int resX, int resY) {
@@ -39,11 +40,11 @@ void Renderer::destroyRenderer() {
 
 
 // Callback functions
-void __onFramebufferSizeChange(GLFWwindow* window, int width, int height) {
+static void __onFramebufferSizeChange(GLFWwindow* window, int width, int height) {
     renderer->onFramebufferSizeChange(window, width, height);
 }  
 
-void __onMouseMove(GLFWwindow* window, double xpos, double ypos) {
+static void __onMouseMove(GLFWwindow* window, double xpos, double ypos) {
     renderer->onMouseMove(window, xpos, ypos);
 }  
 
@@ -189,7 +190,7 @@ int Renderer::init() {
     _depthShaderPoint = Shader("../src/shaders/depthShaderPoint.vs", "../src/shaders/depthShaderPoint.fs", "../src/shaders/depthShaderPoint.gs");
     _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
     _gBufferShader = Shader("../src/shaders/gBuffer.vs", "../src/shaders/gBuffer.fs");
-    _deferredRender = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
+    _deferredShader = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
 
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
@@ -230,11 +231,15 @@ int Renderer::init() {
     glBindVertexArray(0);
 
     // Debug: choose texture to display on quad
-    _quadTexture = _gPosition;
+    _quadTexture = _gNormal;
 
     return 0;
 }
 
+/**
+ * @brief Sets uniforms for shaders requiring information about lighting.
+ * 
+ */
 void Renderer::shaderConfigureLights(Shader &shader) {
     int numberPointLights = pointLights.size();
 
@@ -244,6 +249,8 @@ void Renderer::shaderConfigureLights(Shader &shader) {
     for (int i = 0; i < numberPointLights; i++) {
         pointLights[i]->bind(shader, i);
     } 
+
+    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
 
     // Bind shadow maps
     glActiveTexture(GL_TEXTURE15);
@@ -257,14 +264,21 @@ void Renderer::shaderConfigureLights(Shader &shader) {
     shader.setFloat("far_plane", pointLights.at(0)->getRange()); // debug
 }
 
+/**
+ * @brief Sets uniforms for shaders requiring information about the camera.
+ * 
+ */
 void Renderer::shaderConfigureCameraViewpoint(Shader &shader) {
     shader.use();
     shader.setMat4("view", camera.generateView());
     shader.setMat4("projection", camera.projection); 
     shader.setVec3("viewPos", camera.cameraPos);
-    shader.setMat4("lightSpaceMatrix", dirLight->generateProjectionMatrix());
 }
 
+/**
+ * @brief Sets uniforms for shaders requiring access to the gBuffer.
+ * 
+ */
 void Renderer::shaderConfigureDeferred(Shader &shader) {
     shader.use();
     
@@ -285,7 +299,7 @@ void Renderer::shaderConfigureDeferred(Shader &shader) {
 }
 
 /**
- * @brief Performs a render pass. 
+ * @brief Renders all objects in the scene. 
  * 
  * This is not an external function! Shaders must be configured accordingly before calling.
  */
@@ -296,6 +310,10 @@ void Renderer::render(Shader &shader) {
     }
 }
 
+/**
+ * @brief Draws the texture referenced by `_quadTexture` to the screen quad. 
+ * 
+ */
 void Renderer::renderQuad() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _quadTexture);
@@ -308,22 +326,11 @@ void Renderer::renderQuad() {
     glBindVertexArray(0);
 }
 
-void Renderer::drawDeferred() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
-    glClearColor(_skyboxColor.x, _skyboxColor.y, _skyboxColor.z, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    shaderConfigureDeferred(_deferredRender);
-    shaderConfigureLights(_deferredRender);
-    
-    // Draw onto quad
-    glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-}
-
-void Renderer::draw() {
-    // Generate gBuffer
+/**
+ * @brief Renders the scene to the gBuffer. 
+ * 
+ */
+void Renderer::renderGBuffer() {
     glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);  
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -331,10 +338,18 @@ void Renderer::draw() {
     shaderConfigureCameraViewpoint(_gBufferShader);
     _gBufferShader.setBool("useNormalMaps", _useNormalMaps);
     render(_gBufferShader);
+}
 
-    // Generate depth map (just from directional light for now)
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _depthMap, 0);
+/**
+ * @brief Generates the depth map for a directional light. 
+ * 
+ * @param light 
+ * @param framebuf 
+ * @param texture 
+ */
+void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light, unsigned int framebuf, unsigned int texture) {
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuf);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
 
@@ -343,38 +358,90 @@ void Renderer::draw() {
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glClear(GL_DEPTH_BUFFER_BIT);
     render(_depthShaderDir);
+}
 
-    // Point light depth map
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthCubemap, 0);
+/**
+ * @brief Generates the depth map for a point light. 
+ * 
+ * @param light 
+ * @param framebuf 
+ * @param texture 
+ */
+void Renderer::generateDepthMap(shared_ptr<PointLight> light, unsigned int framebuf, unsigned int cubemap) {
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuf);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cubemap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
 
     _depthShaderPoint.use();
-    _depthShaderPoint.setVec3("lightPos", pointLights.at(0)->position);
-    _depthShaderPoint.setFloat("far_plane", pointLights.at(0)->getRange());
-    auto matrices = pointLights.at(0)->generateProjectionMatrices();
+    _depthShaderPoint.setVec3("lightPos", light->position);
+    _depthShaderPoint.setFloat("farPlane", light->getRange());
+    auto matrices = light->generateProjectionMatrices();
     for (int i = 0; i < matrices.size(); i++) {
         _depthShaderPoint.setMat4("shadowMatrices[" + std::to_string(i) + "]", matrices[i]);
     }
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glClear(GL_DEPTH_BUFFER_BIT);
     render(_depthShaderPoint);
+}
+
+/**
+ * @brief Draws the scene stored in the gBuffer to the screen quad.
+ * 
+ */
+void Renderer::drawDeferred() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
+    // Clear depth buffer - colour buffer will be overwritten
+    glClear(GL_DEPTH_BUFFER_BIT);
+    // Configure shaders
+    shaderConfigureDeferred(_deferredShader);
+    shaderConfigureLights(_deferredShader);
+    
+    // Draw onto quad
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+/**
+ * @brief Render and draw the scene to the screen. 
+ * 
+ * This is the entry point for rendering. It should be called once per render loop.
+ */
+void Renderer::draw() {
+    // Directional light depth map 
+    generateDepthMap(dirLight, _depthMapFBO, _depthMap);
+
+    // Point light depth map (just first one for now)
+    generateDepthMap(pointLights.at(0), _depthMapFBO, _depthCubemap);
+
+    // gBuffer
+    renderGBuffer();
 
     // Visible render pass
     drawDeferred();
 
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    // renderQuad();
+#if 0
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    renderQuad();
+#endif
 
     glfwSwapBuffers(_window);
     glfwPollEvents();    
 }
 
+/**
+ * @brief Whether the window has recieved a close event and should close. 
+ */
 bool Renderer::shouldClose() {
     return glfwWindowShouldClose(_window);
 }
 
+/**
+ * @brief Output some information about GL's limits on this machine. 
+ * 
+ */
 void Renderer::debugConfiguration() {
     int integer;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &integer);

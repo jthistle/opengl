@@ -21,31 +21,35 @@ class Renderer {
 private:
     const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
 
+    // Configuration (mutable)
+    glm::vec3 _skyboxColor;
+    bool _useNormalMaps { true };
+
     GLFWwindow *_window;
     glm::vec2 _targetResolution;
 
-    // Shadows
+    // Shadow maps
     unsigned int _depthMap;
     unsigned int _depthMapFBO;
     unsigned int _depthCubemap;
 
-    // Deferred buffers
+    // Deferred render buffers
     unsigned int _gBuffer, _gAlbedoSpec, _gNormal, _gPosition, _gDepth;
 
-    // Draw configuration
-    glm::vec3 _skyboxColor;
-    bool _useNormalMaps { true };
-
-    // Shaders
+    // Forward rendering mesh shader - legacy
     Shader _objectShader;
+    // For rendering depth map for directional light
     Shader _depthShaderDir;
+    // For rendering depth map for point light
     Shader _depthShaderPoint;
-    Shader _quadShader;
+    // For rendering gBuffer (deferred render)
     Shader _gBufferShader;
-    Shader _deferredRender;
+    // For drawing and lighting gBuffer (deferred render)
+    Shader _deferredShader;
 
     // Debug
     unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
+    Shader _quadShader;
 
 public:
     Camera camera;
@@ -57,7 +61,12 @@ private:
     void shaderConfigureLights(Shader &shader);
     void shaderConfigureCameraViewpoint(Shader &shader);
     void shaderConfigureDeferred(Shader &shader);
+    
     void render(Shader &shader);
+    void renderGBuffer();
+
+    void generateDepthMap(std::shared_ptr<DirectionalLight> light, unsigned int framebuf, unsigned int texture);
+    void generateDepthMap(std::shared_ptr<PointLight> light, unsigned int framebuf, unsigned int cubemap);
     
     void drawDeferred();
 
@@ -85,7 +94,7 @@ public:
     // Debug
     void debugConfiguration();
 
-    // Singleton
+    // Singleton management
     static Renderer* createRenderer(int resX, int resY);
     static void destroyRenderer();
 };
