@@ -52,7 +52,7 @@ void Mesh::draw(Shader &shader)
         string number;
         string name = textures[i].type;
 
-        if (name == "textureNormal" && _useNormalMap) {
+        if (name == "textureNormal") {
             shader.setInt("material.textureNormal", i);
             shader.setBool("material.hasNormalMap", true);
             glBindTexture(GL_TEXTURE_2D, textures[i].ID);

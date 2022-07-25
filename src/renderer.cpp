@@ -329,6 +329,7 @@ void Renderer::draw() {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shaderConfigureCameraViewpoint(_gBufferShader);
+    _gBufferShader.setBool("useNormalMaps", _useNormalMaps);
     render(_gBufferShader);
 
     // Generate depth map (just from directional light for now)
@@ -382,4 +383,6 @@ void Renderer::debugConfiguration() {
     std::cout << "Maximum nr of textures in frag shader: " << integer << std::endl;
     glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &integer);
     std::cout << "Maximum nr of color attachments: " << integer << std::endl;
+    glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &integer);
+    std::cout << "Maximum nr of frag uniform components: " << integer << std::endl;
 }

@@ -34,6 +34,7 @@ private:
 
     // Draw configuration
     glm::vec3 _skyboxColor;
+    bool _useNormalMaps { true };
 
     // Shaders
     Shader _objectShader;
@@ -79,6 +80,7 @@ public:
     // Setters and getters
     void setSkyboxColor(glm::vec3 value) { _skyboxColor = value; }
     GLFWwindow* getWindow() { return _window; }
+    void setUseNormalMaps(bool val) { _useNormalMaps = val; }
 
     // Debug
     void debugConfiguration();

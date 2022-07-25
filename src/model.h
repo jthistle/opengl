@@ -22,7 +22,6 @@ class Model
             loadModel(path);
         }
         void draw(Shader &shader);	
-        void setUseNormalMap(bool val);
         
     private:
         // model data

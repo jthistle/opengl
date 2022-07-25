@@ -136,9 +136,3 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
 
     return textures;
 } 
-
-void Model::setUseNormalMap(bool value) {
-    for (auto i = 0; i < meshes.size(); ++i) {
-        meshes[i].setUseNormalMap(value);
-    }
-}

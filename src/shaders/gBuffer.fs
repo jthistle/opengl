@@ -21,6 +21,8 @@ struct Material {
 }; 
 uniform Material material;
 
+uniform bool useNormalMaps;
+
 void main()
 {    
     // store the fragment position vector in the first gbuffer texture
@@ -28,7 +30,7 @@ void main()
 
     // also store the per-fragment normals into the gbuffer
     vec3 Normal;
-    if (material.hasNormalMap) {
+    if (material.hasNormalMap && useNormalMaps) {
         // obtain normal from normal map in range [0,1]
         Normal = texture(material.textureNormal, fs_in.TexCoords).rgb;
         // transform normal vector to range [-1,1]

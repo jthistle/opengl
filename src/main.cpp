@@ -116,8 +116,7 @@ int main()
 
     // Render loop
     while(!renderer->shouldClose()) {
-        planeObj->setUseNormalMap(doNormalMap);
-        backpack->setUseNormalMap(doNormalMap);
+        renderer->setUseNormalMaps(doNormalMap);
 
         // if ((int)(elapsedTime * 2.0f) % 2 == 0) {
         //     light1->setColor(glm::vec3(1.0f, 0.0f, 0.0f));
@@ -131,7 +130,7 @@ int main()
         lastTimestamp = elapsedTime;
 
         // renderer->dirLight->direction = glm::vec3(1.0f, -0.75f + 0.5f * sin(elapsedTime), -1.0f);
-        light1->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 8.0f, 5.0f * sin(1.0f * elapsedTime));
+        light1->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, 5.0f * sin(1.0f * elapsedTime));
 
         processInput(renderer->getWindow(), renderer->camera, deltaTime);
 

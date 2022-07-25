@@ -30,11 +30,9 @@ class Mesh {
 
         Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
         void draw(Shader &shader);
-        void setUseNormalMap(bool value) { _useNormalMap = value; }
     private:
         //  render data
         unsigned int VAO, VBO, EBO;
-        bool _useNormalMap { true };
 
         void setupMesh();
 };  
