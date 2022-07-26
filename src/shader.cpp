@@ -48,7 +48,8 @@ void Shader::loadShader(const char* path, GLuint shaderType)
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if(!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
+        std::cout << "ERROR: Shader compilation failed for " << path << std::endl;
+        std::cout << infoLog << std::endl;
     };
 
     _shaderParts.push_back(shader);

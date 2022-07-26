@@ -1,9 +1,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "directionalLight.h"
 
-DirectionalLight::DirectionalLight(glm::vec3 color, float ambient, float diffuse, float specular, glm::vec3 direction_)
-: Light(glm::vec3(), color, ambient, diffuse, specular, true) {
-    direction = direction_;
+DirectionalLight::DirectionalLight(glm::vec3 color, float ambient, float diffuse, float specular, glm::vec3 direction, bool castsShadow)
+: Light(glm::vec3(), color, ambient, diffuse, specular, castsShadow) {
+    this->direction = direction;
     
     if (_castsShadow) {
         glGenTextures(1, &_shadowMap);
@@ -15,6 +15,14 @@ DirectionalLight::DirectionalLight(glm::vec3 color, float ambient, float diffuse
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor); 
+    }
+}
+
+DirectionalLight::~DirectionalLight() {
+    std::cout << "destruct" << std::endl;
+    if (_castsShadow) {
+        unsigned int textures[] = { _shadowMap };
+        glDeleteTextures(1, textures);
     }
 }
 

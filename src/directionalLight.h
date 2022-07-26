@@ -9,7 +9,8 @@ class DirectionalLight final : public Light {
 
 public:
     glm::vec3 direction;
-    DirectionalLight(glm::vec3 color, float ambient, float diffuse, float specular, glm::vec3 direction);
+    DirectionalLight(glm::vec3 color, float ambient, float diffuse, float specular, glm::vec3 direction, bool castsShadow);
+    ~DirectionalLight();
 
     void configureForDepthMap(Shader &shader, unsigned int framebuf);
     void bind(Shader& shader, int &textureInd);

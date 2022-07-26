@@ -32,22 +32,21 @@ uniform DirLight dirLight;
 struct PointLight {    
     vec3 position;
     
-    float constant;
     float linear;
     float quadratic;  
+    float range;
 
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    bool castsShadow;
+    samplerCube shadowMap;
 };  
 uniform PointLight pointLights[16];
 uniform int numberPointLights;
 
 uniform vec3 viewPos;
-uniform samplerCube shadowMapPoint;
-
-// todo per light
-uniform float far_plane;
 
 uniform sampler2D gAlbedoSpec;
 uniform sampler2D gNormal;
@@ -56,7 +55,7 @@ uniform sampler2D gPosition;
 
 uniform vec3 skyboxColor;
 
-float ShadowCalculation(in vec4 fragPosLightSpace, in vec3 normal, in vec3 lightDir, in sampler2D shadowMap) {
+float ShadowCalculationDir(in vec4 fragPosLightSpace, in vec3 normal, in vec3 lightDir, in sampler2D shadowMap) {
     // perform perspective divide
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
      // transform to [0,1] range
@@ -89,17 +88,17 @@ float ShadowCalculation(in vec4 fragPosLightSpace, in vec3 normal, in vec3 light
     return shadow;
 }
 
-float ShadowCalculationPoint(vec3 fragPos)
+float ShadowCalculationPoint(in vec3 fragPos, in PointLight light)
 {
     // HACK zero index - only one light handled
-    vec3 lightPos = pointLights[0].position;
+    vec3 lightPos = light.position;
 
     // get vector between fragment position and light position
     vec3 fragToLight = fragPos - lightPos;
     // use the light to fragment vector to sample from the depth map    
-    float closestDepth = texture(shadowMapPoint, fragToLight).r;
+    float closestDepth = texture(light.shadowMap, fragToLight).r;
     // it is currently in linear range between [0,1]. Re-transform back to original value
-    closestDepth *= far_plane;
+    closestDepth *= light.range;
     // now get current linear depth as the length between the fragment and light position
     float currentDepth = length(fragToLight);
     // now test for shadows
@@ -129,7 +128,7 @@ vec3 CalcDirLight(in FragData data, in DirLight light, in vec3 viewDir)
     float shadow = 0.0;
     if (light.castsShadow) {
         vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(data.FragPos, 1.0); 
-        shadow = ShadowCalculation(fragPosLightSpace, data.Normal, lightDir, light.shadowMap);  
+        shadow = ShadowCalculationDir(fragPosLightSpace, data.Normal, lightDir, light.shadowMap);  
     }
 
     return ambient + (1.0 - shadow) * (diffuse + specular);
@@ -155,7 +154,10 @@ vec3 CalcPointLight(in FragData data, in PointLight light, vec3 viewDir)
     diffuse  *= attenuation;
     specular *= attenuation;
 
-    float shadow = ShadowCalculationPoint(data.FragPos);
+    float shadow = 0.0;
+    if (light.castsShadow) {
+        shadow = ShadowCalculationPoint(data.FragPos, light);
+    }
 
     return (ambient + (1.0 - shadow) * (diffuse + specular));
 } 

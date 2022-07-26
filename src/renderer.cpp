@@ -107,24 +107,6 @@ int Renderer::init() {
     // Shadows setup
     glGenFramebuffers(1, &_depthMapFBO);  
 
-    // Point light shadows cubemap
-    glGenTextures(1, &_depthCubemap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, _depthCubemap);
-    for (unsigned int i = 0; i < 6; ++i)
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
-                        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);  
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);  
-
-    glBindFramebuffer(GL_FRAMEBUFFER, _depthMapFBO);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthCubemap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
-
     // Init gBuffer
     glGenFramebuffers(1, &_gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);
@@ -179,7 +161,7 @@ int Renderer::init() {
 
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
-        vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f)
+        vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f), true
     ));
 
     // Quad stuff (for debug)
@@ -230,17 +212,11 @@ void Renderer::shaderConfigureLights(Shader &shader) {
     int textureNumber = 8;
 
     shader.use();
-    shader.setInt("numberPointLights", numberPointLights);
     dirLight->bind(shader, textureNumber);
+    shader.setInt("numberPointLights", numberPointLights);
     for (int i = 0; i < numberPointLights; i++) {
-        pointLights[i]->bind(shader, i);
+        pointLights[i]->bind(shader, i, textureNumber);
     } 
-
-    // HACK point light index zero only
-    glActiveTexture(GL_TEXTURE14);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, _depthCubemap);
-    shader.setInt("shadowMapPoint", 14); // debug
-    shader.setFloat("far_plane", pointLights.at(0)->getRange()); // debug
 }
 
 /**
@@ -337,22 +313,11 @@ void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light) {
  * @param framebuf 
  * @param texture 
  */
-void Renderer::generateDepthMap(shared_ptr<PointLight> light, unsigned int framebuf, unsigned int cubemap) {
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuf);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cubemap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-
-    _depthShaderPoint.use();
-    _depthShaderPoint.setVec3("lightPos", light->position);
-    _depthShaderPoint.setFloat("farPlane", light->getRange());
-    auto matrices = light->generateProjectionMatrices();
-    for (int i = 0; i < matrices.size(); i++) {
-        _depthShaderPoint.setMat4("shadowMatrices[" + std::to_string(i) + "]", matrices[i]);
+void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
+    if (light->getCastsShadow()) {
+        light->configureForDepthMap(_depthShaderPoint, _depthMapFBO);
+        render(_depthShaderPoint);
     }
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    render(_depthShaderPoint);
 }
 
 /**
@@ -384,7 +349,9 @@ void Renderer::draw() {
     generateDepthMap(dirLight);
 
     // Point light depth map (just first one for now)
-    generateDepthMap(pointLights.at(0), _depthMapFBO, _depthCubemap);
+    for (int i = 0; i < pointLights.size(); i++) {
+        generateDepthMap(pointLights[i]);
+    }
 
     // gBuffer
     renderGBuffer();

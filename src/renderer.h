@@ -65,7 +65,7 @@ private:
     void renderGBuffer();
 
     void generateDepthMap(std::shared_ptr<DirectionalLight> light);
-    void generateDepthMap(std::shared_ptr<PointLight> light, unsigned int framebuf, unsigned int cubemap);
+    void generateDepthMap(std::shared_ptr<PointLight> light);
     
     void drawDeferred();
 

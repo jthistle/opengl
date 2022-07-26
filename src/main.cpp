@@ -85,22 +85,28 @@ int main()
 
     // Lights
     auto dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
-        vec3(1.0f, 0.95f, 0.8f), 
-        // vec3(0.0f),
+        // vec3(1.0f, 0.95f, 0.8f), 
+        vec3(0.0f),
         // vec3(1.0f, 0.4f, 0.2f), 
         // vec3(1.0f, 0.6f, 0.0f) * 0.2f,
         0.05f,
         0.5f,
         1.0f,
-        vec3(1.0f, -1.0f, -1.0f)
-        // vec3(1.0f, -0.2f, -1.0f)
+        vec3(1.0f, -1.0f, -1.0f),
+        // vec3(1.0f, -0.2f, -1.0f),
+        true
     ));
     renderer->dirLight = dirLight;
 
     auto light1 = shared_ptr<PointLight>(new PointLight(
-        vec3(3.0f, 4.0f, 5.0f), vec3(0.0f), 0.1f, 0.5f, 1.0f, 50.0f
+        vec3(3.0f, 4.0f, 5.0f), vec3(1.0f, 0.0f, 0.0f), 0.1f, 0.5f, 1.0f, 50.0f, true
     ));
     renderer->pointLights.push_back(light1);
+
+    auto light2 = shared_ptr<PointLight>(new PointLight(
+        vec3(3.0f, 4.0f, 5.0f), vec3(0.0f, 1.0f, 0.0f), 0.1f, 0.5f, 1.0f, 50.0f, true
+    ));
+    renderer->pointLights.push_back(light2);
 
     // renderer->setSkyboxColor(vec3(0.02f, 0.1f, 0.3f));
     renderer->setSkyboxColor(vec3(0.0f, 0.005f, 0.01f));
@@ -131,6 +137,7 @@ int main()
 
         // renderer->dirLight->direction = glm::vec3(1.0f, -0.75f + 0.5f * sin(elapsedTime), -1.0f);
         light1->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, 5.0f * sin(1.0f * elapsedTime));
+        light2->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, -5.0f * sin(1.0f * elapsedTime));
 
         processInput(renderer->getWindow(), renderer->camera, deltaTime);
 
