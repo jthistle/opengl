@@ -6,9 +6,6 @@ PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float
     setRange(range);
     
     if (castsShadow) {
-        // HACK todo work out why binding to texture 1 fixes the black screen issue but
-        // binding to texture 0 doesn't
-        glActiveTexture(GL_TEXTURE1);
         glGenTextures(1, &_shadowMap);
         glBindTexture(GL_TEXTURE_CUBE_MAP, _shadowMap);
         for (unsigned int i = 0; i < 6; ++i)
@@ -18,7 +15,12 @@ PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);  
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+
+        // Unbind to prevent render failure
+        // See https://stackoverflow.com/questions/73124083/simply-generating-a-cubemap-leads-to-a-black-screen/73127330#73127330
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
 }
 
