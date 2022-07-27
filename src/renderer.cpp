@@ -95,7 +95,7 @@ int Renderer::init() {
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     glEnable(GL_DEPTH_TEST);  
     // glEnable(GL_STENCIL_TEST);    
-    glEnable(GL_FRAMEBUFFER_SRGB);  // gamma correction 
+    // glEnable(GL_FRAMEBUFFER_SRGB);  // gamma correction 
     
     // Capture mouse
     glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -149,24 +149,24 @@ int Renderer::init() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     // DEBUG DEBUG DEBUG
-    glGenFramebuffers(1, &_rBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
+    glGenFramebuffers(1, &_hdrBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
     
     // - color buffer
-    glGenTextures(1, &_rColor);
-    glBindTexture(GL_TEXTURE_2D, _rColor);
+    glGenTextures(1, &_hdrColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _rColor, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _hdrColorBuffer, 0);
     
     // Attach depth map to framebuffer
-    glGenTextures(1, &_rDepth);
-    glBindTexture(GL_TEXTURE_2D, _rDepth);
+    glGenTextures(1, &_hdrDepthBuffer);
+    glBindTexture(GL_TEXTURE_2D, _hdrDepthBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, _targetResolution.x, _targetResolution.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _rDepth, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _hdrDepthBuffer, 0);
     
     // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
     unsigned int attachments2[] = { GL_COLOR_ATTACHMENT0 };
@@ -183,6 +183,8 @@ int Renderer::init() {
     _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
     _gBufferShader = Shader("../src/shaders/gBuffer.vs", "../src/shaders/gBuffer.fs");
     _deferredShader = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
+    _hdrShader = Shader("../src/shaders/hdr.vs", "../src/shaders/hdr.fs");
+
     _lightBoxShader = Shader("../src/shaders/lightBox.vs", "../src/shaders/lightBox.fs");
 
     // Set default dirLight
@@ -302,9 +304,9 @@ void Renderer::renderForward(Shader &shader) {
         if ((*i)->deferred) continue;
         // HACK temporary debug
         if (x++ == 0)
-            _lightBoxShader.setVec3("lightColor", 1.0f, 0.0f, 0.0f); 
+            _lightBoxShader.setVec3("lightColor", 20.0f, 0.0f, 0.0f); 
         else
-            _lightBoxShader.setVec3("lightColor", 0.0f, 1.0f, 0.0f);
+            _lightBoxShader.setVec3("lightColor", 0.0f, 5.0f, 0.0f);
         (*i)->draw(shader, *this);
     }
 }
@@ -312,6 +314,7 @@ void Renderer::renderForward(Shader &shader) {
 /**
  * @brief Draws the texture referenced by `_quadTexture` to the screen quad. 
  * 
+ * This is a debug tool, intended to be used to draw arbitrary textures to the screen.
  */
 void Renderer::renderQuad() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -371,14 +374,14 @@ void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
 }
 
 /**
- * @brief Draws the scene stored in the gBuffer to the screen quad.
+ * @brief Draws the scene stored in the gBuffer to the HDR buffer.
  * 
  */
 void Renderer::drawDeferred() {
-    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
-    // Clear depth buffer - colour buffer will be overwritten
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT); // Clear depth buffer - colour buffer will be overwritten
+    
     // Configure shaders
     shaderConfigureDeferred(_deferredShader);
     shaderConfigureLights(_deferredShader);
@@ -397,9 +400,9 @@ void Renderer::drawDeferred() {
 void Renderer::drawForward() {
     // Copy gBuffer depth map
     glBindFramebuffer(GL_READ_FRAMEBUFFER, _gBuffer);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _rBuffer); // write to default framebuffer
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _hdrBuffer); // write to default framebuffer
     glBlitFramebuffer(0, 0, _targetResolution.x, _targetResolution.y, 0, 0, _targetResolution.x, _targetResolution.y, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
 
     // temp debug
     camera.configureShader(_lightBoxShader);
@@ -431,13 +434,19 @@ void Renderer::draw() {
     // Forward pass
     drawForward();
 
-    // Copy r buf to main frame buf
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, _rBuffer);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
-    glBlitFramebuffer(0, 0, _targetResolution.x, _targetResolution.y, 0, 0, _targetResolution.x, _targetResolution.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    // Draw HDR buffer onto quad
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+    _hdrShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
+    _hdrShader.setInt("colorBuffer", 0);
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 
-    _quadTexture = _gDepth;
 #if 0
+    _quadTexture = _gDepth;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderQuad();
 #endif

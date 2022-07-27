@@ -35,6 +35,9 @@ private:
 
     // Deferred render buffers
     unsigned int _gBuffer, _gAlbedoSpec, _gNormal, _gPosition, _gDepth;
+    
+    // HDR processing buffers
+    unsigned int _hdrBuffer, _hdrColorBuffer, _hdrDepthBuffer;
 
     // Forward rendering mesh shader - legacy
     Shader _objectShader;
@@ -46,11 +49,12 @@ private:
     Shader _gBufferShader;
     // For drawing and lighting gBuffer (deferred render)
     Shader _deferredShader;
-    
+    // For drawing HDR buffer to screen quad with tonemapping
+    Shader _hdrShader;
+
+    // temp debug    
     Shader _lightBoxShader;
 
-    // debug
-    unsigned int _rBuffer, _rColor, _rDepth;
 
     // Debug
     unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;

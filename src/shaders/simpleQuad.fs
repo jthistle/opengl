@@ -18,6 +18,8 @@ float LinearizeDepth(float depth)
 
 void main()
 {    
-    float depth = LinearizeDepth(texture(quadTexture, TexCoords).r) / far; // divide by far for demonstration
-    FragColor = vec4(vec3(depth), 1.0);
+    // float depth = LinearizeDepth(texture(quadTexture, TexCoords).r) / far; // divide by far for demonstration
+    // FragColor = vec4(vec3(depth), 1.0);
+
+    FragColor = vec4(texture(quadTexture, TexCoords).rgb, 0.0);
 }
