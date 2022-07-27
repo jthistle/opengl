@@ -104,10 +104,15 @@ int Renderer::init() {
     glfwSetFramebufferSizeCallback(_window, __onFramebufferSizeChange);
     glfwSetCursorPosCallback(_window, __onMouseMove);
 
-    // Shadows setup
+
+    //
+    // Frame buffer for shadow mapping
+    //
     glGenFramebuffers(1, &_depthMapFBO);  
 
+    //
     // Init gBuffer
+    //
     glGenFramebuffers(1, &_gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);
     
@@ -148,18 +153,20 @@ int Renderer::init() {
     glDrawBuffers(3, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
-    // DEBUG DEBUG DEBUG
+    //
+    // HDR buffer setup
+    //
     glGenFramebuffers(1, &_hdrBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
     
-    // - color buffer
+    // Normal colour buffer
     glGenTextures(1, &_hdrColorBuffer);
     glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _hdrColorBuffer, 0);
-    
+
     // Attach depth map to framebuffer
     glGenTextures(1, &_hdrDepthBuffer);
     glBindTexture(GL_TEXTURE_2D, _hdrDepthBuffer);
@@ -167,11 +174,46 @@ int Renderer::init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _hdrDepthBuffer, 0);
-    
-    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+
     unsigned int attachments2[] = { GL_COLOR_ATTACHMENT0 };
     glDrawBuffers(1, attachments2);
     glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+
+    //
+    // Setup bright colour buffer
+    //
+    glGenFramebuffers(1, &_brightFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, _brightFBO);
+    glGenTextures(1, &_brightBuffer);
+    glBindTexture(GL_TEXTURE_2D, _brightBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _brightBuffer, 0);
+
+    unsigned int attachments3[] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments3);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+
+    //
+    // Init pingpong buffer
+    //
+    glGenFramebuffers(2, _pingpongFBO);
+    glGenTextures(2, _pingpongBuffers);
+    for (unsigned int i = 0; i < 2; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, _pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, _pingpongBuffers[i]);
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL
+        );
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _pingpongBuffers[i], 0
+        );
+    }
 
     // Debug config
     debugConfiguration();
@@ -184,6 +226,8 @@ int Renderer::init() {
     _gBufferShader = Shader("../src/shaders/gBuffer.vs", "../src/shaders/gBuffer.fs");
     _deferredShader = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
     _hdrShader = Shader("../src/shaders/hdr.vs", "../src/shaders/hdr.fs");
+    _gaussianShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/gaussian.fs");
+    _brightnessFilterShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/brightFilter.fs");
 
     _lightBoxShader = Shader("../src/shaders/lightBox.vs", "../src/shaders/lightBox.fs");
 
@@ -434,6 +478,41 @@ void Renderer::draw() {
     // Forward pass
     drawForward();
 
+    // Brightness pass
+    glBindFramebuffer(GL_FRAMEBUFFER, _brightFBO);
+    _brightnessFilterShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
+    _brightnessFilterShader.setInt("colorBuffer", 0);
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // Blur bright texture
+    bool horizontal = true, first_iteration = true;
+    int amount = 20;
+    _gaussianShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    _gaussianShader.setInt("image", 0);
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, _pingpongFBO[horizontal]); 
+        _gaussianShader.setInt("horizontal", horizontal);
+        glBindTexture(
+            GL_TEXTURE_2D, first_iteration ? _brightBuffer : _pingpongBuffers[!horizontal]
+        ); 
+        
+        // draw to quad
+        glBindVertexArray(_quadVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        horizontal = !horizontal;
+        if (first_iteration)
+            first_iteration = false;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // Draw HDR buffer onto quad
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
@@ -441,12 +520,15 @@ void Renderer::draw() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     _hdrShader.setInt("colorBuffer", 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, _pingpongBuffers[0]);
+    _hdrShader.setInt("bloomBlur", 1);
     glBindVertexArray(_quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
 #if 0
-    _quadTexture = _gDepth;
+    _quadTexture = _pingpongBuffers[0];
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderQuad();
 #endif

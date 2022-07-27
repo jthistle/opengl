@@ -38,6 +38,10 @@ private:
     
     // HDR processing buffers
     unsigned int _hdrBuffer, _hdrColorBuffer, _hdrDepthBuffer;
+    
+    // Postprocessing
+    unsigned int _brightFBO, _brightBuffer;
+    unsigned int _pingpongFBO[2], _pingpongBuffers[2];
 
     // Forward rendering mesh shader - legacy
     Shader _objectShader;
@@ -51,6 +55,9 @@ private:
     Shader _deferredShader;
     // For drawing HDR buffer to screen quad with tonemapping
     Shader _hdrShader;
+    // Postprocessing
+    Shader _gaussianShader;
+    Shader _brightnessFilterShader;
 
     // temp debug    
     Shader _lightBoxShader;
