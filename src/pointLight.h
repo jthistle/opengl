@@ -14,6 +14,7 @@ class PointLight : public Light {
 
 public:
     PointLight(glm::vec3 position, glm::vec3 color, float ambient, float diffuse, float specular, float range, bool castsShadow);
+    ~PointLight();
 
     float getRange() { return _range; }
     void setRange(float range);

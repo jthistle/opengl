@@ -94,7 +94,7 @@ int Renderer::init() {
     // gl config
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     glEnable(GL_DEPTH_TEST);  
-    glEnable(GL_STENCIL_TEST);    
+    // glEnable(GL_STENCIL_TEST);    
     glEnable(GL_FRAMEBUFFER_SRGB);  // gamma correction 
     
     // Capture mouse
@@ -148,6 +148,31 @@ int Renderer::init() {
     glDrawBuffers(3, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
+    // DEBUG DEBUG DEBUG
+    glGenFramebuffers(1, &_rBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
+    
+    // - color buffer
+    glGenTextures(1, &_rColor);
+    glBindTexture(GL_TEXTURE_2D, _rColor);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _rColor, 0);
+    
+    // Attach depth map to framebuffer
+    glGenTextures(1, &_rDepth);
+    glBindTexture(GL_TEXTURE_2D, _rDepth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, _targetResolution.x, _targetResolution.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _rDepth, 0);
+    
+    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    unsigned int attachments2[] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, attachments2);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+
     // Debug config
     debugConfiguration();
 
@@ -158,6 +183,7 @@ int Renderer::init() {
     _quadShader = Shader("../src/shaders/simpleQuad.vs", "../src/shaders/simpleQuad.fs");
     _gBufferShader = Shader("../src/shaders/gBuffer.vs", "../src/shaders/gBuffer.fs");
     _deferredShader = Shader("../src/shaders/objectDef.vs", "../src/shaders/objectDef.fs");
+    _lightBoxShader = Shader("../src/shaders/lightBox.vs", "../src/shaders/lightBox.fs");
 
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
@@ -220,17 +246,6 @@ void Renderer::shaderConfigureLights(Shader &shader) {
 }
 
 /**
- * @brief Sets uniforms for shaders requiring information about the camera.
- * 
- */
-void Renderer::shaderConfigureCameraViewpoint(Shader &shader) {
-    shader.use();
-    shader.setMat4("view", camera.generateView());
-    shader.setMat4("projection", camera.projection); 
-    shader.setVec3("viewPos", camera.cameraPos);
-}
-
-/**
  * @brief Sets uniforms for shaders requiring access to the gBuffer.
  * 
  */
@@ -248,7 +263,7 @@ void Renderer::shaderConfigureDeferred(Shader &shader) {
     glBindTexture(GL_TEXTURE_2D, _gPosition);
     shader.setInt("gPosition", 2);
 
-    shader.setVec3("viewPos", camera.cameraPos);
+    shader.setVec3("viewPos", camera.position);
     shader.setVec3("skyboxColor", _skyboxColor);
 }
 
@@ -257,10 +272,40 @@ void Renderer::shaderConfigureDeferred(Shader &shader) {
  * 
  * This is not an external function! Shaders must be configured accordingly before calling.
  */
-void Renderer::render(Shader &shader) {
+void Renderer::renderAll(Shader &shader) {
     shader.use();
     for (auto i = objects.begin(); i != objects.end(); ++i) {
-        (*i)->draw(shader);
+        (*i)->draw(shader, *this);
+    }
+}
+
+void Renderer::renderShadowCasters(Shader &shader) {
+    shader.use();
+    for (auto i = objects.begin(); i != objects.end(); ++i) {
+        if (!(*i)->castsShadow) continue;
+        (*i)->draw(shader, *this);
+    }
+}
+
+void Renderer::renderDeferred(Shader &shader) {
+    shader.use();
+    for (auto i = objects.begin(); i != objects.end(); ++i) {
+        if (!(*i)->deferred) continue;
+        (*i)->draw(shader, *this);
+    }
+}
+
+void Renderer::renderForward(Shader &shader) {
+    shader.use();
+    int x = 0;
+    for (auto i = objects.begin(); i != objects.end(); ++i) {
+        if ((*i)->deferred) continue;
+        // HACK temporary debug
+        if (x++ == 0)
+            _lightBoxShader.setVec3("lightColor", 1.0f, 0.0f, 0.0f); 
+        else
+            _lightBoxShader.setVec3("lightColor", 0.0f, 1.0f, 0.0f);
+        (*i)->draw(shader, *this);
     }
 }
 
@@ -269,6 +314,7 @@ void Renderer::render(Shader &shader) {
  * 
  */
 void Renderer::renderQuad() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _quadTexture);
 
@@ -289,9 +335,11 @@ void Renderer::renderGBuffer() {
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shaderConfigureCameraViewpoint(_gBufferShader);
+
+    _gBufferShader.use();
     _gBufferShader.setBool("useNormalMaps", _useNormalMaps);
-    render(_gBufferShader);
+    camera.configureShader(_gBufferShader);
+    renderDeferred(_gBufferShader);
 }
 
 /**
@@ -302,8 +350,10 @@ void Renderer::renderGBuffer() {
  * @param texture 
  */
 void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light) {
-    light->configureForDepthMap(_depthShaderDir, _depthMapFBO);
-    render(_depthShaderDir);
+    if (light->getCastsShadow()) {
+        light->configureForDepthMap(_depthShaderDir, _depthMapFBO);
+        renderShadowCasters(_depthShaderDir);
+    }
 }
 
 /**
@@ -316,7 +366,7 @@ void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light) {
 void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
     if (light->getCastsShadow()) {
         light->configureForDepthMap(_depthShaderPoint, _depthMapFBO);
-        render(_depthShaderPoint);
+        renderShadowCasters(_depthShaderPoint);
     }
 }
 
@@ -325,7 +375,7 @@ void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
  * 
  */
 void Renderer::drawDeferred() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
     glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     // Clear depth buffer - colour buffer will be overwritten
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -340,6 +390,25 @@ void Renderer::drawDeferred() {
 }
 
 /**
+ * @brief Forward render pass - draws objects marked for forward rendering. 
+ * 
+ * This occurs after the deferred pass.
+ */
+void Renderer::drawForward() {
+    // Copy gBuffer depth map
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, _gBuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _rBuffer); // write to default framebuffer
+    glBlitFramebuffer(0, 0, _targetResolution.x, _targetResolution.y, 0, 0, _targetResolution.x, _targetResolution.y, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, _rBuffer);
+
+    // temp debug
+    camera.configureShader(_lightBoxShader);
+    _lightBoxShader.setVec3("lightColor", glm::vec3(1.0f, 0.0f, 0.0f));
+
+    renderForward(_lightBoxShader);
+}
+
+/**
  * @brief Render and draw the scene to the screen. 
  * 
  * This is the entry point for rendering. It should be called once per render loop.
@@ -348,7 +417,7 @@ void Renderer::draw() {
     // Directional light depth map 
     generateDepthMap(dirLight);
 
-    // Point light depth map (just first one for now)
+    // Point light depth maps 
     for (int i = 0; i < pointLights.size(); i++) {
         generateDepthMap(pointLights[i]);
     }
@@ -359,6 +428,15 @@ void Renderer::draw() {
     // Visible render pass
     drawDeferred();
 
+    // Forward pass
+    drawForward();
+
+    // Copy r buf to main frame buf
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, _rBuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+    glBlitFramebuffer(0, 0, _targetResolution.x, _targetResolution.y, 0, 0, _targetResolution.x, _targetResolution.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    _quadTexture = _gDepth;
 #if 0
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderQuad();

@@ -17,10 +17,16 @@ PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-
         // Unbind to prevent render failure
         // See https://stackoverflow.com/questions/73124083/simply-generating-a-cubemap-leads-to-a-black-screen/73127330#73127330
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    }
+}
+
+PointLight::~PointLight() {
+    if (_castsShadow) {
+        unsigned int textures[] = { _shadowMap };
+        glDeleteTextures(1, textures);
     }
 }
 

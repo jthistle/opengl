@@ -2,7 +2,7 @@
 
 Camera::Camera(float fov, float aspect, float near, float far)
 {
-    cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
+    position   = glm::vec3(0.0f, 0.0f,  3.0f);
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
 
@@ -18,23 +18,29 @@ glm::mat4 Camera::generateView()
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     cameraFront = glm::normalize(direction);
 
-    return glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    return glm::lookAt(position, position + cameraFront, cameraUp);
 }
 
 void Camera::move(Camera::MoveDirection direction, float distance)
 {
     switch (direction) {
         case Camera::MoveDirection::FORWARD:
-            cameraPos += distance * cameraFront;
+            position += distance * glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
             break;
         case Camera::MoveDirection::BACKWARD:
-            cameraPos -= distance * cameraFront;
+            position -= distance * glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
             break;
         case Camera::MoveDirection::LEFT:
-            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * distance;
+            position -= glm::normalize(glm::cross(cameraFront, cameraUp)) * distance;
             break;
         case Camera::MoveDirection::RIGHT:
-            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * distance;
+            position += glm::normalize(glm::cross(cameraFront, cameraUp)) * distance;
+            break;
+        case Camera::MoveDirection::UP:
+            position += distance * cameraUp;
+            break;
+        case Camera::MoveDirection::DOWN:
+            position -= distance * cameraUp;
             break;
     }
 }
@@ -64,4 +70,11 @@ void Camera::mouseCallback(GLFWwindow* window, double xpos, double ypos)
     if(pitch < -89.0f)
         pitch = -89.0f;
 
+}
+
+void Camera::configureShader(Shader &shader) {
+    shader.use();
+    shader.setMat4("view", generateView());
+    shader.setMat4("projection", projection); 
+    shader.setVec3("viewPos", position);
 }

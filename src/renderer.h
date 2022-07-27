@@ -1,6 +1,7 @@
 #ifndef __RENDERER__
 #define __RENDERER__
 
+#include <map>
 #include <string>
 #include <vector>
 #include <memory> 
@@ -45,6 +46,11 @@ private:
     Shader _gBufferShader;
     // For drawing and lighting gBuffer (deferred render)
     Shader _deferredShader;
+    
+    Shader _lightBoxShader;
+
+    // debug
+    unsigned int _rBuffer, _rColor, _rDepth;
 
     // Debug
     unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
@@ -58,16 +64,19 @@ public:
 
 private:
     void shaderConfigureLights(Shader &shader);
-    void shaderConfigureCameraViewpoint(Shader &shader);
     void shaderConfigureDeferred(Shader &shader);
     
-    void render(Shader &shader);
+    void renderAll(Shader &shader);
+    void renderShadowCasters(Shader &shader);
+    void renderDeferred(Shader &shader);
+    void renderForward(Shader &shader);
     void renderGBuffer();
 
     void generateDepthMap(std::shared_ptr<DirectionalLight> light);
     void generateDepthMap(std::shared_ptr<PointLight> light);
     
     void drawDeferred();
+    void drawForward();
 
     void renderQuad();
 

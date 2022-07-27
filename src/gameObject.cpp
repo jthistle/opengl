@@ -1,4 +1,5 @@
 #include "gameObject.h"
+#include "renderer.h"
 
 using std::string;
 
@@ -10,7 +11,7 @@ GameObject::GameObject(string modelPath) {
     _model = Model(modelPath);
 }
 
-void GameObject::draw(Shader &shader) {
+void GameObject::draw(Shader &shader, const Renderer &renderer) {
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::translate(modelMatrix, position);
     modelMatrix = glm::scale(modelMatrix, scale);

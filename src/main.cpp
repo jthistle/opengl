@@ -14,6 +14,7 @@
 #include "model.h"
 #include "mesh.h"
 #include "gameObject.h"
+#include "cube.h"
 
 #include "renderer.h"
 
@@ -38,6 +39,10 @@ void processInput(GLFWwindow *window, Camera &camera, float dt)
         camera.move(Camera::MoveDirection::LEFT, cameraSpeed);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.move(Camera::MoveDirection::RIGHT, cameraSpeed);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.move(Camera::MoveDirection::UP, cameraSpeed);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.move(Camera::MoveDirection::DOWN, cameraSpeed);
 
     if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
         doNormalMap = !doNormalMap;
@@ -108,6 +113,18 @@ int main()
     ));
     renderer->pointLights.push_back(light2);
 
+    auto cubeObj = std::shared_ptr<Cube>(new Cube());
+    cubeObj->castsShadow = false;
+    cubeObj->scale = glm::vec3(0.2f);
+    cubeObj->position = glm::vec3(0.0f, 1.0f, -5.0f);
+    renderer->objects.push_back(cubeObj);
+
+    auto cubeObj2 = std::shared_ptr<Cube>(new Cube());
+    cubeObj2->castsShadow = false;
+    cubeObj2->scale = glm::vec3(0.2f);
+    cubeObj2->position = glm::vec3(0.0f, 1.0f, 5.0f);
+    renderer->objects.push_back(cubeObj2);
+
     // renderer->setSkyboxColor(vec3(0.02f, 0.1f, 0.3f));
     renderer->setSkyboxColor(vec3(0.0f, 0.005f, 0.01f));
 
@@ -138,6 +155,8 @@ int main()
         // renderer->dirLight->direction = glm::vec3(1.0f, -0.75f + 0.5f * sin(elapsedTime), -1.0f);
         light1->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, 5.0f * sin(1.0f * elapsedTime));
         light2->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, -5.0f * sin(1.0f * elapsedTime));
+        cubeObj->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, 5.0f * sin(1.0f * elapsedTime));
+        cubeObj2->position = glm::vec3(5.0f * cos(1.0f * elapsedTime), 2.0f, -5.0f * sin(1.0f * elapsedTime));
 
         processInput(renderer->getWindow(), renderer->camera, deltaTime);
 

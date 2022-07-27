@@ -19,7 +19,6 @@ DirectionalLight::DirectionalLight(glm::vec3 color, float ambient, float diffuse
 }
 
 DirectionalLight::~DirectionalLight() {
-    std::cout << "destruct" << std::endl;
     if (_castsShadow) {
         unsigned int textures[] = { _shadowMap };
         glDeleteTextures(1, textures);
