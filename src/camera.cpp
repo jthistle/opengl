@@ -1,4 +1,7 @@
 #include "camera.h"
+  
+#include <fstream>
+#include <sstream>
 
 Camera::Camera(float fov, float aspect, float near, float far)
 {

@@ -4,8 +4,6 @@
 #include <assimp/types.h>
 #include <stb_image.h>
 
-#include <iostream>
-
 #include "model.h"
 
 void Model::draw(Shader &shader)

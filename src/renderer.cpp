@@ -1,18 +1,15 @@
 #include "renderer.h"
 
-#include <iostream>
-#include <cmath>
-
+#include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "shader.h"
 #include "texture.h"
 
 using glm::vec2;
 using glm::vec3;
-using std::string;
-using std::vector;
-using std::shared_ptr;
 
 //
 // Singleton management

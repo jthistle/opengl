@@ -1,5 +1,5 @@
-#include <glm/gtc/matrix_transform.hpp>
 #include "pointLight.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 PointLight::PointLight(glm::vec3 position, glm::vec3 color, float ambient, float diffuse, float specular, float range, bool castsShadow)
 : Light(position, color, ambient, diffuse, specular, castsShadow) {

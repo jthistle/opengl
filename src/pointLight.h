@@ -1,7 +1,6 @@
 #ifndef __POINTLIGHT__
 #define __POINTLIGHT__
 
-#include <vector>
 #include "light.h"
 
 class PointLight : public Light {
@@ -21,7 +20,7 @@ public:
     void bind(Shader &shader, int index, int &textureInd);
     void configureForDepthMap(Shader &shader, int framebuf);
 
-    std::vector<glm::mat4> generateProjectionMatrices();
+    vector<glm::mat4> generateProjectionMatrices();
 };
 
 #endif /* __POINTLIGHT__ */

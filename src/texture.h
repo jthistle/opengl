@@ -1,21 +1,17 @@
 #ifndef __TEXTURE__
 #define __TEXTURE__
 
-#include <glad/glad.h> 
-#include <stb_image.h>
-  
-#include <string>
+#include "global.h"
 #include <fstream>
 #include <sstream>
-#include <iostream>
-  
+#include <stb_image.h>
 
 class Texture
 {
 public:
     unsigned int ID;
-    std::string type;
-    std::string path;
+    string type;
+    string path;
   
     Texture(const char* imagePath, GLuint colorMode, bool gammaCorrect);
     void bind(GLuint textureSlot);

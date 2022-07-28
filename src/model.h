@@ -1,18 +1,11 @@
 #ifndef __MODEL__
 #define __MODEL__
 
-#include <glad/glad.h> 
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
+#include "global.h"
 #include <assimp/scene.h>
   
-#include <string>
-#include <vector>
-
 #include "mesh.h"
 
-  
 class Model 
 {
     public:

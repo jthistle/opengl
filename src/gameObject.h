@@ -1,11 +1,8 @@
 #ifndef __GAMEOBJECT__
 #define __GAMEOBJECT__
 
-#include <memory>
-#include <string>
-#include <glm/glm.hpp>
+#include "global.h"
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "model.h"
 #include "shader.h"
@@ -27,7 +24,7 @@ public:
 public:
     GameObject() {};
     GameObject(Model &model);
-    GameObject(std::string modelPath);
+    GameObject(string modelPath);
 
     virtual void draw(Shader &shader, const Renderer &renderer);
 

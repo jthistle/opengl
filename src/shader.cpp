@@ -1,5 +1,9 @@
 #include "shader.h"
 
+#include <fstream>
+#include <sstream>
+#include <glm/gtc/type_ptr.hpp>
+
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     loadShader(vertexPath, GL_VERTEX_SHADER);
     loadShader(fragmentPath, GL_FRAGMENT_SHADER);

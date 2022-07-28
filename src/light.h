@@ -1,9 +1,7 @@
 #ifndef __LIGHT__
 #define __LIGHT__
 
-#include <glad/glad.h> 
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "global.h"
 
 #include "shader.h"
 

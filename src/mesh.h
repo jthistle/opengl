@@ -1,17 +1,10 @@
 #ifndef __MESH__
 #define __MESH__
 
-#include <string>
-#include <vector>
-#include <glad/glad.h> 
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "global.h"
 
 #include "texture.h"
 #include "shader.h"
-
-using std::string;
-using std::vector;
 
 struct Vertex {
     glm::vec3 Position;
