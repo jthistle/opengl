@@ -55,17 +55,17 @@ int main()
     Renderer *renderer = Renderer::createRenderer(1200, 900);
 
     // Setup scene
-    auto backpack = shared_ptr<GameObject>(new GameObject("../src/backpack/backpack.obj"));
+    auto backpack = shared_ptr<GameObject>(new GameObject("../res/backpack/backpack.obj"));
     renderer->objects.push_back(backpack);
     // backpack->scale = glm::vec3(1.0f);
     // backpack->position = glm::vec3(0.0f, 0.0f, 5.0f);
 
     // Plane
-    Texture pixel("../src/brickwall.jpg", GL_RGB, true);
+    Texture pixel("../res/brickwall.jpg", GL_RGB, true);
     pixel.type = "texturesDiffuse";
-    Texture pixelSpec("../src/pixel.png", GL_RGB, false);
+    Texture pixelSpec("../res/pixel.png", GL_RGB, false);
     pixelSpec.type = "texturesSpecular";
-    Texture pixelNorm("../src/brickwall_normal.jpg", GL_RGB, false);
+    Texture pixelNorm("../res/brickwall_normal.jpg", GL_RGB, false);
     pixelNorm.type = "textureNormal";
 
     std::vector<Vertex> planeVerts = {
