@@ -83,6 +83,8 @@ private:
     void renderForward(Shader &shader);
     void renderGBuffer();
 
+    void brightnessThreshold(unsigned int inTexture, unsigned int outFBO);
+
     void generateDepthMap(std::shared_ptr<DirectionalLight> light);
     void generateDepthMap(std::shared_ptr<PointLight> light);
     

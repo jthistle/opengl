@@ -81,14 +81,14 @@ int Renderer::init() {
     if (_window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
-        return -1;
+        return 1;
     }
     glfwMakeContextCurrent(_window);
 
     // Init GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
-        return -1;
+        return 1;
     }    
 
     // gl config
@@ -116,7 +116,7 @@ int Renderer::init() {
     glGenFramebuffers(1, &_gBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, _gBuffer);
     
-    // - position color buffer
+    // Position buffer
     glGenTextures(1, &_gPosition);
     glBindTexture(GL_TEXTURE_2D, _gPosition);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -124,7 +124,7 @@ int Renderer::init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, _gPosition, 0);
     
-    // - normal color buffer
+    // Normal buffer
     glGenTextures(1, &_gNormal);
     glBindTexture(GL_TEXTURE_2D, _gNormal);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -132,7 +132,7 @@ int Renderer::init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, _gNormal, 0);
     
-    // - color + specular color buffer
+    // Colour and specular buffer
     glGenTextures(1, &_gAlbedoSpec);
     glBindTexture(GL_TEXTURE_2D, _gAlbedoSpec);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -148,7 +148,7 @@ int Renderer::init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, _gDepth, 0);
     
-    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    // Attach the colour buffers 
     unsigned int attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
     glDrawBuffers(3, attachments);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
@@ -159,7 +159,7 @@ int Renderer::init() {
     glGenFramebuffers(1, &_hdrBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
     
-    // Normal colour buffer
+    // Normal colour buffer - we use format GL_RGBA15F so that we have range greater than [0, 1]
     glGenTextures(1, &_hdrColorBuffer);
     glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, _targetResolution.x, _targetResolution.y, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -236,7 +236,9 @@ int Renderer::init() {
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f), true
     ));
 
-    // Quad stuff (for debug)
+    //
+    // Screen quad setup
+    //
     float quadVerts[] = {
         // Screen pos       Texture coord
         -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
@@ -268,9 +270,6 @@ int Renderer::init() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
     glBindVertexArray(0);
-
-    // Debug: choose texture to display on quad
-    _quadTexture = _gNormal;
 
     return 0;
 }
@@ -346,11 +345,13 @@ void Renderer::renderForward(Shader &shader) {
     int x = 0;
     for (auto i = objects.begin(); i != objects.end(); ++i) {
         if ((*i)->deferred) continue;
+
         // HACK temporary debug
         if (x++ == 0)
             _lightBoxShader.setVec3("lightColor", 20.0f, 0.0f, 0.0f); 
         else
             _lightBoxShader.setVec3("lightColor", 0.0f, 5.0f, 0.0f);
+
         (*i)->draw(shader, *this);
     }
 }
@@ -369,7 +370,7 @@ void Renderer::renderQuad() {
     _quadShader.setInt("quadTexture", 0);
 
     glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindTexture(GL_TEXTURE_2D, _quadTexture);
     glBindVertexArray(0);
 }
 
@@ -401,6 +402,8 @@ void Renderer::generateDepthMap(shared_ptr<DirectionalLight> light) {
         light->configureForDepthMap(_depthShaderDir, _depthMapFBO);
         renderShadowCasters(_depthShaderDir);
     }
+
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
 }
 
 /**
@@ -415,6 +418,8 @@ void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
         light->configureForDepthMap(_depthShaderPoint, _depthMapFBO);
         renderShadowCasters(_depthShaderPoint);
     }
+
+    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
 }
 
 /**
@@ -423,7 +428,6 @@ void Renderer::generateDepthMap(shared_ptr<PointLight> light) {
  */
 void Renderer::drawDeferred() {
     glBindFramebuffer(GL_FRAMEBUFFER, _hdrBuffer);
-    glViewport(0, 0, _targetResolution.x, _targetResolution.y);
     glClear(GL_DEPTH_BUFFER_BIT); // Clear depth buffer - colour buffer will be overwritten
     
     // Configure shaders
@@ -434,6 +438,8 @@ void Renderer::drawDeferred() {
     glBindVertexArray(_quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 /**
@@ -453,6 +459,31 @@ void Renderer::drawForward() {
     _lightBoxShader.setVec3("lightColor", glm::vec3(1.0f, 0.0f, 0.0f));
 
     renderForward(_lightBoxShader);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/**
+ * @brief Applies a threshold to the _hdrColorBuffer and writes to _brightBuffer. 
+ * 
+ * @param inTexture GL_TEXTURE_2D which is to be thresholded. 
+ * @param outFBO FBO with an attached color buffer in location 0 of the same size as inTexture.
+ */
+void Renderer::brightnessThreshold(unsigned int inTexture, unsigned int outFBO) {
+    glBindFramebuffer(GL_FRAMEBUFFER, outFBO);
+
+    _brightnessFilterShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, inTexture);
+    _brightnessFilterShader.setInt("colorBuffer", 0);
+    
+    // Draw
+    glBindVertexArray(_quadVAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    
+    // Unbinds
+    glBindVertexArray(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 /**
@@ -479,14 +510,7 @@ void Renderer::draw() {
     drawForward();
 
     // Brightness pass
-    glBindFramebuffer(GL_FRAMEBUFFER, _brightFBO);
-    _brightnessFilterShader.use();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
-    _brightnessFilterShader.setInt("colorBuffer", 0);
-    glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    brightnessThreshold(_hdrColorBuffer, _brightFBO);
 
     // Blur bright texture
     bool horizontal = true, first_iteration = true;
