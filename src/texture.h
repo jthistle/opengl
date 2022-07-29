@@ -4,6 +4,7 @@
 #include "global.h"
 #include <fstream>
 #include <sstream>
+
 #include <stb_image.h>
 
 class Texture

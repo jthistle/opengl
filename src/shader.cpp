@@ -104,6 +104,16 @@ void Shader::setFloat(const std::string &name, float value) const
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value); 
 } 
 
+void Shader::setVec2(const std::string &name, float valX, float valY) const
+{ 
+    glUniform2f(glGetUniformLocation(ID, name.c_str()), valX, valY); 
+} 
+
+void Shader::setVec2(const std::string &name, const glm::vec2 &value) const
+{ 
+    glUniform2f(glGetUniformLocation(ID, name.c_str()), value.x, value.y); 
+} 
+
 void Shader::setVec3(const std::string &name, float valX, float valY, float valZ) const
 { 
     glUniform3f(glGetUniformLocation(ID, name.c_str()), valX, valY, valZ); 
@@ -118,3 +128,17 @@ void Shader::setMat4(const std::string &name, const glm::mat4 &value) const
 { 
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(value)); 
 } 
+
+/**
+ * @brief Checks if the shader program is valid.
+ * 
+ * For use in debug only, since validation is a non-trivial operation and can slow down renders.
+ * See also https://registry.khronos.org/OpenGL-Refpages/es2.0/xhtml/glValidateProgram.xml.
+ * 
+ */
+bool Shader::isValid() const {
+    int valid;
+    glValidateProgram(ID);
+    glGetProgramiv(ID, GL_VALIDATE_STATUS, &valid);
+    return valid == GL_TRUE;
+}

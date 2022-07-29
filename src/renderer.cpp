@@ -228,6 +228,9 @@ int Renderer::init() {
 
     _lightBoxShader = Shader("../src/shaders/lightBox.vs", "../src/shaders/lightBox.fs");
 
+    // Bloom renderer
+    _bloomRenderer.init(_targetResolution.x, _targetResolution.y);
+
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f), true
@@ -345,9 +348,9 @@ void Renderer::renderForward(Shader &shader) {
 
         // HACK temporary debug
         if (x++ == 0)
-            _lightBoxShader.setVec3("lightColor", 20.0f, 0.0f, 0.0f); 
+            _lightBoxShader.setVec3("lightColor", 10.0f, 0.0f, 0.0f); 
         else
-            _lightBoxShader.setVec3("lightColor", 0.0f, 5.0f, 0.0f);
+            _lightBoxShader.setVec3("lightColor", 0.0f, 2.0f, 0.0f);
 
         (*i)->draw(shader, *this);
     }
@@ -477,9 +480,8 @@ void Renderer::brightnessThreshold(unsigned int inTexture, unsigned int outFBO) 
     // Draw
     glBindVertexArray(_quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    
-    // Unbinds
     glBindVertexArray(0);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -509,7 +511,11 @@ void Renderer::draw() {
     // Brightness pass
     brightnessThreshold(_hdrColorBuffer, _brightFBO);
 
+    // Blur with bloom renderer
+    _bloomRenderer.renderBloomTexture(_brightBuffer, 0.005f);
+
     // Blur bright texture
+#if 0 
     bool horizontal = true, first_iteration = true;
     int amount = 20;
     _gaussianShader.use();
@@ -533,6 +539,7 @@ void Renderer::draw() {
             first_iteration = false;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+#endif
 
     // Draw HDR buffer onto quad
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -542,14 +549,16 @@ void Renderer::draw() {
     glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     _hdrShader.setInt("colorBuffer", 0);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, _pingpongBuffers[0]);
+    // glBindTexture(GL_TEXTURE_2D, _pingpongBuffers[0]);
+    glBindTexture(GL_TEXTURE_2D, _bloomRenderer.bloomTexture());
     _hdrShader.setInt("bloomBlur", 1);
     glBindVertexArray(_quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
 #if 0
-    _quadTexture = _pingpongBuffers[0];
+    // _quadTexture = _pingpongBuffers[0];
+    _quadTexture = _brightBuffer;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderQuad();
 #endif

@@ -104,7 +104,7 @@ int main()
     renderer->dirLight = dirLight;
 
     auto light1 = shared_ptr<PointLight>(new PointLight(
-        vec3(3.0f, 4.0f, 5.0f), vec3(1.0f, 0.0f, 0.0f) * 20.0f, 0.1f, 0.5f, 1.0f, 50.0f, true
+        vec3(3.0f, 4.0f, 5.0f), vec3(1.0f, 0.0f, 0.0f) * 10.0f, 0.1f, 0.5f, 1.0f, 50.0f, true
     ));
     renderer->pointLights.push_back(light1);
 

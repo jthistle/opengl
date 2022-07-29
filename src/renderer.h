@@ -9,6 +9,7 @@
 #include "directionalLight.h"
 #include "pointLight.h"
 #include "gameObject.h"
+#include "bloomRenderer.h"
 
 class Renderer {
 private:
@@ -53,7 +54,9 @@ private:
 
     // temp debug    
     Shader _lightBoxShader;
-
+    
+    // Bloom
+    BloomRenderer _bloomRenderer;
 
     // Debug
     unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
