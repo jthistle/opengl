@@ -1,6 +1,5 @@
 #version 330 core
 
-in vec3 FragPos;
 in vec2 TexCoords;
 
 uniform sampler2D quadTexture;
@@ -21,5 +20,5 @@ void main()
     // float depth = LinearizeDepth(texture(quadTexture, TexCoords).r) / far; // divide by far for demonstration
     // FragColor = vec4(vec3(depth), 1.0);
 
-    FragColor = vec4(texture(quadTexture, TexCoords).rgb, 0.0);
+    FragColor = vec4(vec3(texture(quadTexture, TexCoords).r), 1.0);
 }

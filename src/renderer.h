@@ -10,6 +10,8 @@
 #include "pointLight.h"
 #include "gameObject.h"
 #include "bloomRenderer.h"
+#include "screenQuad.h"
+#include "ssaoRenderer.h"
 
 class Renderer {
 private:
@@ -20,7 +22,7 @@ private:
     bool _useNormalMaps { true };
 
     GLFWwindow *_window;
-    glm::vec2 _targetResolution;
+    glm::ivec2 _targetResolution;
 
     // Shadow maps
     unsigned int _depthMapFBO;
@@ -58,8 +60,12 @@ private:
     // Bloom
     BloomRenderer _bloomRenderer;
 
+    // SSAO
+    SSAORenderer _ssaoRenderer;
+
     // Debug
-    unsigned int _quadVAO, _quadVBO, _quadEBO, _quadTexture;
+    ScreenQuad _quad;
+    unsigned int _quadTexture;
     Shader _quadShader;
 
 public:

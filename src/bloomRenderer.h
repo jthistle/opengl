@@ -5,6 +5,7 @@
 
 #include "shader.h"
 #include "bloomManager.h"
+#include "screenQuad.h"
 
 class BloomRenderer {
 public:
@@ -28,7 +29,7 @@ private:
     Shader _downsampleShader;
     Shader _upsampleShader;
     
-    unsigned int _quadVBO, _quadVAO;
+    ScreenQuad _quad;
 };
 
 #endif /* __BLOOMRENDERER__ */

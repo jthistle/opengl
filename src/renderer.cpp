@@ -50,7 +50,7 @@ static void __onMouseMove(GLFWwindow* window, double xpos, double ypos) {
 // class Renderer
 //
 Renderer::Renderer(int resX, int resY) {
-    _targetResolution = vec2(resX, resY);
+    _targetResolution = glm::ivec2(resX, resY);
 }
 
 Renderer::~Renderer() {
@@ -231,45 +231,13 @@ int Renderer::init() {
     // Bloom renderer
     _bloomRenderer.init(_targetResolution.x, _targetResolution.y);
 
+    // SSAO renderer
+    _ssaoRenderer.init(_targetResolution);
+
     // Set default dirLight
     dirLight = shared_ptr<DirectionalLight>(new DirectionalLight(
         vec3(0.0f), 0.1f, 0.5f, 1.0f, vec3(0.0f), true
     ));
-
-    //
-    // Screen quad setup
-    //
-    float quadVerts[] = {
-        // Screen pos       Texture coord
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-    };
-
-    unsigned int quadInds[] = {
-        0, 1, 2,
-        0, 2, 3,
-    };
-
-    glGenVertexArrays(1, &_quadVAO);
-    glGenBuffers(1, &_quadVBO);
-    glGenBuffers(1, &_quadEBO);
-  
-    glBindVertexArray(_quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, _quadVBO);
-
-    glBufferData(GL_ARRAY_BUFFER, 4 * 5 * sizeof(float), &quadVerts[0], GL_STATIC_DRAW);  
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), &quadInds[0], GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);	
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);	
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-
-    glBindVertexArray(0);
 
     return 0;
 }
@@ -350,7 +318,7 @@ void Renderer::renderForward(Shader &shader) {
         if (x++ == 0)
             _lightBoxShader.setVec3("lightColor", 10.0f, 0.0f, 0.0f); 
         else
-            _lightBoxShader.setVec3("lightColor", 0.0f, 2.0f, 0.0f);
+            _lightBoxShader.setVec3("lightColor", 0.0f, 5.0f, 0.0f);
 
         (*i)->draw(shader, *this);
     }
@@ -368,10 +336,7 @@ void Renderer::renderQuad() {
 
     _quadShader.use();
     _quadShader.setInt("quadTexture", 0);
-
-    glBindVertexArray(_quadVAO);
-    glBindTexture(GL_TEXTURE_2D, _quadTexture);
-    glBindVertexArray(0);
+    _quad.draw();
 }
 
 /**
@@ -435,10 +400,7 @@ void Renderer::drawDeferred() {
     shaderConfigureLights(_deferredShader);
     
     // Draw onto quad
-    glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-    
+    _quad.draw(); 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -478,10 +440,7 @@ void Renderer::brightnessThreshold(unsigned int inTexture, unsigned int outFBO) 
     _brightnessFilterShader.setInt("colorBuffer", 0);
     
     // Draw
-    glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-
+    _quad.draw();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -501,6 +460,9 @@ void Renderer::draw() {
 
     // gBuffer
     renderGBuffer();
+
+    // Generate SSAO
+    _ssaoRenderer.draw(_gPosition, _gNormal, camera.projection, camera.generateView());
 
     // Visible render pass
     drawDeferred();
@@ -549,16 +511,17 @@ void Renderer::draw() {
     glBindTexture(GL_TEXTURE_2D, _hdrColorBuffer);
     _hdrShader.setInt("colorBuffer", 0);
     glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D, _pingpongBuffers[0]);
     glBindTexture(GL_TEXTURE_2D, _bloomRenderer.bloomTexture());
     _hdrShader.setInt("bloomBlur", 1);
-    glBindVertexArray(_quadVAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, _ssaoRenderer.getTexture());
+    _hdrShader.setInt("ssaoTexture", 2);
+
+    _quad.draw();
 
 #if 0
     // _quadTexture = _pingpongBuffers[0];
-    _quadTexture = _brightBuffer;
+    _quadTexture = _ssaoRenderer.getTexture();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     renderQuad();
 #endif

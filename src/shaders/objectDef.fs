@@ -53,6 +53,8 @@ uniform sampler2D gNormal;
 uniform sampler2D gTangent;
 uniform sampler2D gPosition;
 
+uniform sampler2D ssaoTexture;
+
 uniform vec3 skyboxColor;
 
 float ShadowCalculationDir(in vec4 fragPosLightSpace, in vec3 normal, in vec3 lightDir, in sampler2D shadowMap) {
@@ -131,7 +133,8 @@ vec3 CalcDirLight(in FragData data, in DirLight light, in vec3 viewDir)
         shadow = ShadowCalculationDir(fragPosLightSpace, data.Normal, lightDir, light.shadowMap);  
     }
 
-    return ambient + (1.0 - shadow) * (diffuse + specular);
+    float ssao = texture(ssaoTexture, fs_in.TexCoords).r;
+    return ambient * ssao + (1.0 - shadow) * (diffuse + specular);
 }
 
 vec3 CalcPointLight(in FragData data, in PointLight light, vec3 viewDir)
@@ -159,7 +162,8 @@ vec3 CalcPointLight(in FragData data, in PointLight light, vec3 viewDir)
         shadow = ShadowCalculationPoint(data.FragPos, light);
     }
 
-    return (ambient + (1.0 - shadow) * (diffuse + specular));
+    float ssao = texture(ssaoTexture, fs_in.TexCoords).r;
+    return (ambient * ssao + (1.0 - shadow) * (diffuse + specular));
 } 
 
 void main()

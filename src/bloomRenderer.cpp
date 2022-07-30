@@ -26,35 +26,6 @@ bool BloomRenderer::init(unsigned int windowWidth, unsigned int windowHeight) {
     _upsampleShader.use();
     _upsampleShader.setInt("srcTexture", 0);
 
-    // Quad setup
-    float quadVertices[] = {
-        // upper-left triangle
-        -1.0f, -1.0f, 0.0f, 0.0f, // position, texcoord
-        -1.0f,  1.0f, 0.0f, 1.0f,
-        1.0f,  1.0f, 1.0f, 1.0f,
-        // lower-right triangle
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, 1.0f, 0.0f
-    };
-
-    glGenVertexArrays(1, &_quadVAO);
-    glGenBuffers(1, &_quadVBO);
-
-    glBindVertexArray(_quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, _quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // texture coordinate
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
-                          (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
-
     std::cout << "bloom renderer: init with width " << windowWidth << " and height " << windowHeight << std::endl;
 
     _init = true;
@@ -104,9 +75,7 @@ void BloomRenderer::renderDownsamples(unsigned int srcTexture)
                                GL_TEXTURE_2D, mip.texture, 0);
 
         // Render screen-filled quad of resolution of current mip
-        glBindVertexArray(_quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
+        _quad.draw();
 
         // Set current mip resolution as srcResolution for next iteration
         _downsampleShader.setVec2("srcResolution", mip.size);
@@ -142,9 +111,7 @@ void BloomRenderer::renderUpsamples(float filterRadius)
                                GL_TEXTURE_2D, nextMip.texture, 0);
 
         // Render screen-filled quad of resolution of current mip
-        glBindVertexArray(_quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
+        _quad.draw();
     }
 
     // Disable additive blending
